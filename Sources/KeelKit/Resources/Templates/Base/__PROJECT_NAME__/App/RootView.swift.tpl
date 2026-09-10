@@ -1,11 +1,13 @@
 //
-//  ContentView.swift
+//  RootView.swift
 //  __PROJECT_NAME__
 //
 
 import SwiftUI
 
-struct ContentView: View {
+/// The app's first screen. Replace this with your own navigation — a
+/// `TabView`, a router, or whatever the project needs.
+struct RootView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "swift")
@@ -15,7 +17,7 @@ struct ContentView: View {
             Text("__PROJECT_NAME__")
                 .font(.title.bold())
 
-            Text("Start building in ContentView.swift")
+            Text("Start building in RootView.swift")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -24,5 +26,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    RootView()
 }
