@@ -23,6 +23,7 @@ struct ComponentGenerationTests {
         .localization: "MyApp/Core/Localization/L10n.swift",
         .testing: "MyAppTests/MyAppTests.swift",
         .designSystem: "MyApp/DesignSystem/DSColors.swift",
+        .exampleFeature: "MyApp/Features/Articles/Presentation/ArticleListView.swift",
     ]
 
     private func withGenerated<T>(
@@ -143,6 +144,48 @@ struct ComponentGenerationTests {
             )
             #expect(!entry.contains("AppContainer"))
             #expect(!entry.contains("SwiftData"))
+        }
+    }
+
+    @Test("The example feature is reachable from the root view when selected")
+    func exampleFeatureIsWiredIntoRootView() throws {
+        try withGenerated(components: [.networking, .exampleFeature]) { root in
+            let rootView = String(
+                decoding: try Data(contentsOf: root.appendingPathComponent("MyApp/App/RootView.swift")),
+                as: UTF8.self
+            )
+            // Generating the feature but never navigating to it would leave a
+            // developer looking at the placeholder screen wondering where it went.
+            #expect(rootView.contains("ArticleListView"))
+        }
+    }
+
+    @Test("The root view falls back to a placeholder without the example feature")
+    func rootViewFallsBackWithoutExample() throws {
+        try withGenerated(components: []) { root in
+            let rootView = String(
+                decoding: try Data(contentsOf: root.appendingPathComponent("MyApp/App/RootView.swift")),
+                as: UTF8.self
+            )
+            #expect(!rootView.contains("ArticleListView"))
+            #expect(rootView.contains("Start building in RootView.swift"))
+        }
+    }
+
+    @Test("The example feature layers Domain, Data and Presentation separately")
+    func exampleFeatureIsLayered() throws {
+        try withGenerated(components: [.networking, .exampleFeature]) { root in
+            // The DTO/domain split is the point of the example: an API rename
+            // should stop at the repository.
+            for path in [
+                "MyApp/Features/Articles/Domain/Article.swift",
+                "MyApp/Features/Articles/Data/ArticleDTO.swift",
+                "MyApp/Features/Articles/Data/ArticleRepository.swift",
+                "MyApp/Features/Articles/Presentation/ArticleListViewModel.swift",
+                "MyApp/Features/Articles/Presentation/ArticleDetailViewModel.swift",
+            ] {
+                #expect(exists(path, in: root), "expected \(path)")
+            }
         }
     }
 }

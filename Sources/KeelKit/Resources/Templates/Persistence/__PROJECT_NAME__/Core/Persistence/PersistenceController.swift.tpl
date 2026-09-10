@@ -26,7 +26,22 @@ final class PersistenceController {
         StoredItem.self,
     ])
 
-    init(inMemory: Bool = false) {
+    /// True while the app is hosting a test run.
+    ///
+    /// The test host launches the real app, so without this the suite would
+    /// open — and write to — the same store the simulator's installed copy
+    /// uses. That makes tests order-dependent, and on a sandboxed test host
+    /// the store often cannot be created at all.
+    private static var isRunningTests: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+            || environment["XCTestSessionIdentifier"] != nil
+    }
+
+    // Spelled out rather than `Self.`, which Swift rejects in a default
+    // argument because `Self` is covariant.
+    init(inMemory: Bool = PersistenceController.isRunningTests) {
         let configuration = ModelConfiguration(
             schema: Self.schema,
             isStoredInMemoryOnly: inMemory

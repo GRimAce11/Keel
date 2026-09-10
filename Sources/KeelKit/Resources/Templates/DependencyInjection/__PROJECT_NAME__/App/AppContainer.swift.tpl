@@ -26,6 +26,11 @@ final class AppContainer {
 // keel:if authentication
     let authManager: AuthManager
 // keel:end
+// keel:if exampleFeature
+
+    // MARK: Feature repositories
+    let articleRepository: ArticleRepository
+// keel:end
 
     init() {
 // keel:if keychain
@@ -38,6 +43,9 @@ final class AppContainer {
 // keel:end
 // keel:if persistence
         self.persistence = PersistenceController.shared
+// keel:end
+// keel:if exampleFeature
+        self.articleRepository = ArticleRepository(apiClient: apiClient)
 // keel:end
 // keel:if authentication
         let authManager = AuthManager(apiClient: apiClient, keychain: keychain)
