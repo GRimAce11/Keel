@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # A generator rots on Apple's schedule, not on yours: a new Xcode can break
+  # generated projects while Keel's own source is untouched. The weekly run is
+  # what tells you which week that happened.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege. Pull requests from forks get a read-only token and no
+# secrets, and nothing here needs more than that.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Keel tests
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest installed Xcode
+        run: |
+          # Package.swift needs tools 6.1, which the image default may predate.
+          # Picking the newest installed Xcode also means the scheduled run
+          # exercises whatever GitHub ships next, which is the point.
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+          swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+  generated:
+    name: ${{ matrix.label }}
+    runs-on: macos-latest
+    needs: test
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: all components
+            name: Full
+            flags: ""
+            test: true
+          - label: no components
+            name: Bare
+            flags: "--minimal"
+            test: false
+          - label: without networking
+            name: NoNet
+            flags: "--no-networking"
+            test: true
+          - label: without dependency injection
+            name: NoInject
+            flags: "--no-dependency-injection"
+            test: true
+          - label: without persistence
+            name: NoStore
+            flags: "--no-persistence"
+            test: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest installed Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+
+      - name: Build keel
+        run: swift build
+
+      - name: Pick a simulator
+        id: simulator
+        run: |
+          # Runners change their installed devices without notice, so the name
+          # is discovered rather than hardcoded.
+          NAME=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          names = [d["name"] for r, e in devices.items() if "iOS" in r
+                   for d in e if d["name"].startswith("iPhone")]
+          def rank(n):
+              digits = "".join(c for c in n if c.isdigit())
+              return (int(digits) if digits else 0, len(n))
+          print(max(names, key=rank) if names else "")
+          ')
+          if [ -z "$NAME" ]; then echo "No iOS simulator available"; exit 1; fi
+          echo "Using $NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Generate project
+        run: ./.build/debug/keel new ${{ matrix.name }} --yes --no-git -o "$RUNNER_TEMP" ${{ matrix.flags }}
+
+      - name: Build generated project
+        working-directory: ${{ runner.temp }}/${{ matrix.name }}
+        run: |
+          xcodebuild build \
+            -scheme ${{ matrix.name }} \
+            -destination "platform=iOS Simulator,name=${{ steps.simulator.outputs.name }}" \
+            -quiet
+
+      - name: Test generated project
+        if: matrix.test
+        working-directory: ${{ runner.temp }}/${{ matrix.name }}
+        run: |
+          xcodebuild test \
+            -scheme ${{ matrix.name }} \
+            -destination "platform=iOS Simulator,name=${{ steps.simulator.outputs.name }}" \
+            -quiet
+
+  matrix:
+    # Every component in isolation — the case that catches a module quietly
+    # depending on a sibling. Too slow for every push, so it runs on the
+    # weekly schedule and on demand.
+    name: Full component matrix
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    needs: test
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest installed Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+
+      - name: Build keel
+        run: swift build
+
+      - name: Build every component combination
+        run: ./Scripts/verify-generated.sh

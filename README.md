@@ -17,9 +17,10 @@
 ---
 
 > [!NOTE]
-> **Early development.** The command surface below is complete and `keel new`
-> configures a project interactively today. Project generation and the analysis
-> commands are landing phase by phase — see the [roadmap](#-roadmap).
+> **Early development.** `keel new` fully works: it generates a project that
+> opens in Xcode, builds, and passes its tests. The analysis commands
+> (`inspect`, `document`, `check`, `doctor`, `ai`) are declared but not
+> implemented yet — see the [roadmap](#-roadmap).
 
 <br>
 
@@ -117,7 +118,7 @@ flowchart TD
 
 | | Command | What it does | Status |
 |:--:|---|---|:--:|
-| 🆕 | `keel new` | Create a new iOS project | 🟡 Configuring |
+| 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ⚪ Planned |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies | ⚪ Planned |
 | ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
@@ -215,11 +216,11 @@ starting with a digit are caught before anything is written.
 | ✅ | Project configuration model | done |
 | ✅ | Interactive `keel new` | done |
 | ✅ | Template system | done |
-| 🔨 | Xcode project generation | next |
-| ⚪ | Generated MVVM architecture | |
-| ⚪ | Conditional infrastructure modules | |
-| ⚪ | Example feature | |
-| ⚪ | `keel inspect` + ProjectModel | |
+| ✅ | Xcode project generation | done |
+| ✅ | Generated MVVM architecture | done |
+| ✅ | Conditional infrastructure modules | done |
+| ✅ | Example feature | done |
+| 🔨 | `keel inspect` + ProjectModel | next |
 | ⚪ | Swift source & architecture analysis | |
 | ⚪ | `keel document` without AI | |
 | ⚪ | AI agent detection & provider abstraction | |
@@ -232,12 +233,20 @@ starting with a digit are caught before anything is written.
 
 <br>
 
-## 🛠 Development
+## 🤝 Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it lists the few things Keel
+refuses on principle (third-party dependencies, AI in a core command), so
+nobody builds something that was never going to land.
 
 ```bash
 swift build
-swift test
+swift test                      # Keel's own tests
+./Scripts/verify-generated.sh   # generates and builds every combination
 ```
+
+The last one is required for any template change. Unit tests prove the right
+files were written; only a real build proves the result opens in Xcode.
 
 <br>
 

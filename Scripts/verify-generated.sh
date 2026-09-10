@@ -14,7 +14,32 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
-SIMULATOR="${1:-iPhone 17}"
+# Pick a simulator that actually exists rather than hardcoding a device name.
+# CI runners change their installed simulators without warning, and a name that
+# was fine last month fails with an unhelpful "destination not found".
+detect_simulator() {
+    xcrun simctl list devices available -j 2>/dev/null | python3 -c '
+import json, sys
+devices = json.load(sys.stdin)["devices"]
+names = [
+    device["name"]
+    for runtime, entries in devices.items() if "iOS" in runtime
+    for device in entries if device["name"].startswith("iPhone")
+]
+# Highest trailing number wins, so the newest iPhone is preferred.
+def rank(name):
+    digits = "".join(c for c in name if c.isdigit())
+    return (int(digits) if digits else 0, len(name))
+print(max(names, key=rank) if names else "")
+'
+}
+
+SIMULATOR="${1:-$(detect_simulator)}"
+if [ -z "$SIMULATOR" ]; then
+    echo "No iOS simulator available. Install one via Xcode > Settings > Components."
+    exit 1
+fi
+
 WORK_DIR="$(mktemp -d)"
 KEEL="./.build/debug/keel"
 FAILURES=0

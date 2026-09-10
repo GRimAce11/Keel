@@ -1,0 +1,70 @@
+name: Bug report
+description: Something Keel did wrong, or a generated project that does not build
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The single most useful thing you can include is
+        the exact `keel new` command you ran — most bugs only appear for a
+        particular combination of components.
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command, including every flag.
+      placeholder: keel new MyApp --yes --no-networking
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Paste the error. For a build failure, the compiler error and the file it points at.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: keel-version
+    attributes:
+      label: Keel version
+      description: Output of `keel --version`.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: xcode
+    attributes:
+      label: Xcode version
+      description: Output of `xcodebuild -version`.
+      placeholder: "Xcode 16.2 (16C5032a)"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.2"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I can reproduce this on a freshly generated project
+          required: true

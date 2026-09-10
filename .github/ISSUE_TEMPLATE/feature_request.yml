@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest something Keel should do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keel has a [phase plan](https://github.com/GRimAce11/Keel#-roadmap) and
+        a deliberately narrow scope. Worth checking whether this is already
+        planned, and worth reading the "What Keel will not accept" section of
+        CONTRIBUTING.md — a few things are ruled out on principle rather than
+        for lack of time.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do that Keel makes hard today.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like Keel to do
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - keel new — project generation
+        - A generated component (networking, DI, persistence, …)
+        - keel inspect / document — project analysis
+        - keel check / doctor
+        - AI integration
+        - Something else
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Keel refuses these on principle. Confirming keeps the discussion short.
+      options:
+        - label: This does not require a third-party dependency, in Keel or in generated projects
+          required: true
+        - label: This does not make any core command depend on AI, an account, or a network
+          required: true
