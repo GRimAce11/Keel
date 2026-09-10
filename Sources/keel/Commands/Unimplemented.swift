@@ -31,20 +31,6 @@ struct Document: ParsableCommand {
     }
 }
 
-struct Inspect: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "inspect",
-        abstract: "Report the structure of an existing iOS project."
-    )
-
-    func run() throws {
-        try Unimplemented.report(
-            "inspect",
-            "It will report targets, schemes, deployment targets and dependencies."
-        )
-    }
-}
-
 struct Check: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "check",

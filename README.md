@@ -17,10 +17,9 @@
 ---
 
 > [!NOTE]
-> **Early development.** `keel new` fully works: it generates a project that
-> opens in Xcode, builds, and passes its tests. The analysis commands
-> (`inspect`, `document`, `check`, `doctor`, `ai`) are declared but not
-> implemented yet — see the [roadmap](#-roadmap).
+> **Early development.** `keel new` and `keel inspect` both work today.
+> `document`, `check`, `doctor` and `ai` are declared but not implemented
+> yet — see the [roadmap](#-roadmap).
 
 <br>
 
@@ -120,7 +119,7 @@ flowchart TD
 |:--:|---|---|:--:|
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ⚪ Planned |
-| 🔍 | `keel inspect` | Report targets, schemes, dependencies | ⚪ Planned |
+| 🔍 | `keel inspect` | Report targets, schemes, dependencies | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ⚪ Planned |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ⚪ Planned |
@@ -174,6 +173,18 @@ keel new MyApp --no-networking        # skip one component
 keel new MyApp --bundle-id com.acme --ios 18.0
 ```
 
+### Reading an existing project
+
+```bash
+cd SomeApp
+keel inspect          # targets, schemes, dependencies, source summary
+keel inspect --json   # the same, as JSON
+```
+
+Everything reported is read from the project's own files — no `xcodebuild`, no
+network, no AI. It works on a project that does not currently compile, which is
+often exactly when you need to understand it.
+
 <details>
 <summary><b>All options</b></summary>
 
@@ -220,7 +231,8 @@ starting with a digit are caught before anything is written.
 | ✅ | Generated MVVM architecture | done |
 | ✅ | Conditional infrastructure modules | done |
 | ✅ | Example feature | done |
-| 🔨 | `keel inspect` + ProjectModel | next |
+| ✅ | `keel inspect` | done |
+| 🔨 | ProjectModel | next |
 | ⚪ | Swift source & architecture analysis | |
 | ⚪ | `keel document` without AI | |
 | ⚪ | AI agent detection & provider abstraction | |

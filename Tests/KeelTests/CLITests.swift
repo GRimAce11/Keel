@@ -120,13 +120,23 @@ struct CLITests {
 
     @Test(
         "Unimplemented commands exit non-zero and say so",
-        arguments: ["document", "inspect", "check", "doctor", "ai"]
+        arguments: ["document", "check", "doctor", "ai"]
     )
     func unimplementedCommandsReportClearly(command: String) throws {
         let result = try CLIRunner.run([command])
         // Exiting zero would let a CI pipeline "pass" a step that did nothing.
         #expect(result.succeeded == false)
         #expect(result.combinedOutput.contains("not implemented"))
+    }
+
+    @Test("inspect explains itself when there is no project to read")
+    func inspectReportsMissingProject() throws {
+        // Run somewhere that definitely holds no Xcode project.
+        let result = try CLIRunner.run(["inspect", NSTemporaryDirectory()])
+        #expect(result.succeeded == false)
+        #expect(result.combinedOutput.contains("No .xcodeproj"))
+        // It is implemented now, so it must not claim otherwise.
+        #expect(!result.combinedOutput.contains("not implemented"))
     }
 }
 
