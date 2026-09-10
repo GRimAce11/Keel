@@ -25,31 +25,9 @@
 
 ## ⚡ What it looks like
 
-```ansi
-[90m$[0m keel new MyApp
-
-[1mProject[0m
-[36m?[0m Bundle identifier prefix [90m(com.example)[0m com.acme
-[36m?[0m Minimum iOS version [90m(17.0)[0m
-
-[1mInclude[0m
-[36m?[0m Networking [90m— APIClient, endpoints, typed errors, retry and auth headers[0m [90m[Y/n][0m 
-[36m?[0m Dependency injection [90m— AppContainer composition root with constructor injection[0m [90m[Y/n][0m 
-[36m?[0m Persistence [90m— SwiftData model container and a store protocol[0m [90m[Y/n][0m n
-[36m?[0m Keychain storage [90m— Secure storage wrapping the Keychain API[0m [90m[Y/n][0m 
-[36m?[0m Localization [90m— String Catalog and typed accessors[0m [90m[Y/n][0m 
-[36m?[0m Unit tests [90m— Test target with stubs and ViewModel tests[0m [90m[Y/n][0m 
-[36m?[0m Example feature [90m— A working list + detail screen you can copy[0m [90m[Y/n][0m 
-
-[1mConfiguration[0m
-[90m  Name              MyApp[0m
-[90m  Bundle identifier com.acme.my-app[0m
-[90m  Minimum iOS       17.0[0m
-[90m  Components        Networking, Dependency injection, Keychain storage,[0m
-[90m                    Localization, Unit tests, Example feature[0m
-
-[33m![0m Project generation is not implemented yet — nothing was written.
-```
+<div align="center">
+  <img src=".github/assets/demo.svg" alt="keel new MyApp — interactive component selection" width="840">
+</div>
 
 <br>
 
