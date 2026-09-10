@@ -32,8 +32,17 @@ struct New: ParsableCommand {
     )
     var minimumIOSVersion: String?
 
+    @Option(
+        name: [.customShort("o"), .customLong("output")],
+        help: ArgumentHelp("Directory to create the project in.", valueName: "path")
+    )
+    var output: String?
+
     @Flag(name: [.customShort("y"), .customLong("yes")], help: "Accept every default without asking.")
     var assumeDefaults = false
+
+    @Flag(name: .customLong("no-git"), help: "Skip initialising a git repository.")
+    var noGit = false
 
     @Flag(name: .customLong("minimal"), help: "App skeleton only — no optional components.")
     var minimal = false
@@ -94,6 +103,41 @@ struct New: ParsableCommand {
         )
 
         report(configuration, console: console)
+        try generate(configuration, console: console)
+    }
+
+    private func generate(_ configuration: ProjectConfiguration, console: Console) throws {
+        let destination = URL(
+            fileURLWithPath: output ?? FileManager.default.currentDirectoryPath
+        ).standardizedFileURL
+
+        do {
+            let generator = try ProjectGenerator(configuration: configuration, console: console)
+            let outcome = try generator.generate(in: destination, initializeGit: !noGit)
+
+            console.success("Wrote \(outcome.fileCount) files")
+            if outcome.didInitializeGitRepository {
+                console.success("Initialized git repository")
+            }
+
+            let path = outcome.projectDirectory.path.replacingOccurrences(
+                of: FileManager.default.currentDirectoryPath + "/",
+                with: ""
+            )
+            console.write()
+            console.success("\(configuration.name.raw) is ready.")
+            console.write()
+            console.write("  cd \(path)")
+            console.write("  open \(configuration.name.raw).xcodeproj")
+            console.write()
+
+        } catch let error as ProjectGenerator.GenerationError {
+            console.error(error.description)
+            throw ExitCode.failure
+        } catch let error as TemplateCatalog.CatalogError {
+            console.error(error.description)
+            throw ExitCode.failure
+        }
     }
 
     /// Flags resolve to explicit answers; anything not named on the command
@@ -134,8 +178,6 @@ struct New: ParsableCommand {
             .filter(configuration.includes)
             .map(\.title)
         console.detail("Components        \(included.isEmpty ? "none" : included.joined(separator: ", "))")
-
         console.write()
-        console.warn("Project generation is not implemented yet — nothing was written.")
     }
 }
