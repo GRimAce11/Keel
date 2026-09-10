@@ -27,7 +27,16 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
-        .target(name: "KeelKit"),
+        .target(
+            name: "KeelKit",
+            resources: [
+                // Copied verbatim, so templates ship inside the binary and
+                // generation never needs the network. Every file carries a
+                // .tpl suffix, which also stops SwiftPM mistaking a template
+                // for a compilable source file.
+                .copy("Resources/Templates"),
+            ]
+        ),
         .testTarget(
             name: "KeelTests",
             dependencies: ["KeelKit"]
