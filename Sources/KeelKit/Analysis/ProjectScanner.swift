@@ -80,6 +80,8 @@ public struct ProjectScanner {
             ?? projects.first?.name
             ?? root.lastPathComponent
 
+        let sourceScanner = SourceScanner(root: root)
+
         // Structure comes from the directory layout: with synchronized folder
         // groups the project file says nothing about it at all.
         let layout = LayoutScanner(
@@ -97,8 +99,32 @@ public struct ProjectScanner {
             configurations: configurations,
             modules: layout.modules(),
             features: layout.features(),
-            source: SourceScanner(root: root).scan()
+            source: sourceScanner.scan(),
+            analysis: analyze(files: sourceScanner.swiftFiles())
         )
+    }
+
+    // MARK: - Source
+
+    /// Parses every Swift file the source scanner found.
+    ///
+    /// Files are parsed in parallel: a few hundred files is normal and each
+    /// parse is independent, so this is the one place concurrency is worth the
+    /// complexity.
+    private func analyze(files: [URL]) -> SourceAnalysis {
+        let analyzer = SwiftSourceAnalyzer()
+        let root = self.root
+
+        var results = [FileAnalysis?](repeating: nil, count: files.count)
+        results.withUnsafeMutableBufferPointer { buffer in
+            DispatchQueue.concurrentPerform(iterations: files.count) { index in
+                // Each iteration writes to its own slot, so no two threads
+                // touch the same memory.
+                buffer[index] = analyzer.analyze(fileAt: files[index], relativeTo: root)
+            }
+        }
+
+        return SourceAnalysis(files: results.compactMap { $0 })
     }
 
     // MARK: - Schemes

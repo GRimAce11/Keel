@@ -16,6 +16,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
+        // Structural analysis of Swift source. Keel itself may take a
+        // dependency; the no-dependency rule covers what it *generates*.
+        // Regex cannot reliably tell a conformance from a comment.
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.1"),
     ],
     targets: [
         // Thin CLI shell. All logic lives in KeelKit so it stays testable —
@@ -29,6 +33,10 @@ let package = Package(
         ),
         .target(
             name: "KeelKit",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+            ],
             resources: [
                 // Copied verbatim, so templates ship inside the binary and
                 // generation never needs the network. Every file carries a

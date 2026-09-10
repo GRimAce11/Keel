@@ -68,6 +68,7 @@ struct Inspect: ParsableCommand {
         renderSchemes(inspection, console: console)
         renderPackages(inspection, console: console)
         renderSource(inspection, console: console)
+        renderDeclarations(inspection, console: console)
     }
 
     private func renderTargets(_ inspection: ProjectModel, console: Console) {
@@ -134,6 +135,71 @@ struct Inspect: ParsableCommand {
         for package in inspection.dependencies {
             let name = package.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
             console.detail("\(name)  \(package.requirement ?? "")")
+        }
+    }
+
+    private func renderDeclarations(_ inspection: ProjectModel, console: Console) {
+        let analysis = inspection.analysis
+        guard !analysis.types.isEmpty else { return }
+
+        console.heading("Declarations")
+
+        // Counted by kind, so the shape of the codebase is visible at a glance.
+        let kinds: [(TypeDeclaration.Kind, String)] = [
+            (.structure, "Structs"), (.classType, "Classes"),
+            (.enumeration, "Enums"), (.protocolType, "Protocols"),
+            (.actorType, "Actors"), (.extensionOf, "Extensions"),
+        ]
+        for (kind, label) in kinds {
+            let count = analysis.types(ofKind: kind).count
+            guard count > 0 else { continue }
+            console.detail("\(label.padding(toLength: 18, withPad: " ", startingAt: 0))\(count)")
+        }
+
+        console.detail("\("Functions".padding(toLength: 18, withPad: " ", startingAt: 0))\(analysis.functionCount)")
+        if analysis.asyncFunctionCount > 0 {
+            console.detail("\("  async".padding(toLength: 18, withPad: " ", startingAt: 0))\(analysis.asyncFunctionCount)")
+        }
+        if analysis.throwingFunctionCount > 0 {
+            console.detail("\("  throwing".padding(toLength: 18, withPad: " ", startingAt: 0))\(analysis.throwingFunctionCount)")
+        }
+
+        renderPatterns(analysis, console: console)
+        renderImports(analysis, console: console)
+    }
+
+    /// Counts of the patterns that say how a codebase is built.
+    private func renderPatterns(_ analysis: SourceAnalysis, console: Console) {
+        let patterns: [(String, Int)] = [
+            ("@Observable", analysis.types(withAttribute: "Observable").count),
+            ("ObservableObject", analysis.types(conformingTo: "ObservableObject").count),
+            ("@MainActor", analysis.types(withAttribute: "MainActor").count),
+            ("@Model", analysis.types(withAttribute: "Model").count),
+            ("SwiftUI View", analysis.types(conformingTo: "View").count),
+            ("ViewModels", analysis.types(namedWithSuffix: "ViewModel").count),
+            ("Repositories", analysis.types(namedWithSuffix: "Repository").count),
+        ].filter { $0.1 > 0 }
+
+        guard !patterns.isEmpty else { return }
+
+        console.heading("Patterns")
+        let width = patterns.map(\.0.count).max() ?? 0
+        for (name, count) in patterns {
+            console.detail("\(name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0))  \(count)")
+        }
+    }
+
+    /// The most-imported modules, which is the clearest signal of what a
+    /// codebase is actually built on.
+    private func renderImports(_ analysis: SourceAnalysis, console: Console) {
+        let counts = analysis.importCounts().prefix(8)
+        guard !counts.isEmpty else { return }
+
+        console.heading("Most imported")
+        let width = counts.map(\.module.count).max() ?? 0
+        for entry in counts {
+            let name = entry.module.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
+            console.detail("\(name)  \(entry.files) file\(entry.files == 1 ? "" : "s")")
         }
     }
 

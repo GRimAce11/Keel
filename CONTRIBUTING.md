@@ -14,11 +14,15 @@ change that fights either is more useful as a conversation than as a diff.
 These are not negotiable, and a PR that crosses one will be closed with a
 pointer back here.
 
-**No third-party dependencies.** Not in Keel, and not in what it generates.
-No Alamofire, no Firebase, no DI framework, no SnapKit. Every dependency Keel
-does not have is one that thousands of generated projects never have to
-migrate. `URLSession`, `async/await`, `Observation` and Swift Testing cover
-what the generated project needs.
+**No third-party dependencies in generated projects.** No Alamofire, no
+Firebase, no DI framework, no SnapKit. Every dependency a generated project
+does not have is one that thousands of apps never have to migrate.
+`URLSession`, `async/await`, `Observation` and Swift Testing cover what it
+needs.
+
+Keel itself may take a dependency where the alternative is worse: it uses
+swift-syntax, because regex cannot reliably tell a conformance from the same
+words in a comment. That bar is high — argue the case in an issue first.
 
 **No AI requirement in a core command.** `keel new`, `inspect`, `document`,
 `check` and `doctor` must all work with no agent installed, no account, no API

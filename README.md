@@ -232,8 +232,10 @@ starting with a digit are caught before anything is written.
 | ✅ | Conditional infrastructure modules | done |
 | ✅ | Example feature | done |
 | ✅ | `keel inspect` | done |
-| 🔨 | ProjectModel | next |
-| ⚪ | Swift source & architecture analysis | |
+| ✅ | ProjectModel | done |
+| ✅ | Swift source analysis | done |
+| 🔨 | Architecture detection | next |
+
 | ⚪ | `keel document` without AI | |
 | ⚪ | AI agent detection & provider abstraction | |
 | ⚪ | AI-assisted documentation | |
