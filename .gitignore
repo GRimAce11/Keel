@@ -67,3 +67,6 @@ DerivedData/
 
 # Projects generated while testing keel locally
 /Scratch/
+
+# Generated for upload at Settings > General > Social preview; not read from the repo.
+/.github/assets/social-preview.png
