@@ -33,7 +33,7 @@ public struct ProjectScanner {
 
     // MARK: - Scan
 
-    public func scan() throws -> ProjectInspection {
+    public func scan() throws -> ProjectModel {
         let workspaces = try entries(withExtension: "xcworkspace")
             // An .xcodeproj contains its own .xcworkspace; only a standalone
             // one means the project is opened through a workspace.
@@ -47,6 +47,7 @@ public struct ProjectScanner {
 
         var projects: [XcodeProject] = []
         var packages: [PackageDependency] = []
+        var configurations: [BuildConfiguration] = []
 
         for path in projectPaths.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let file: PBXProjectFile
@@ -65,6 +66,9 @@ public struct ProjectScanner {
                 )
             )
             packages.append(contentsOf: file.packages())
+            configurations += file.configurationNames().map {
+                BuildConfiguration(name: $0, projectName: path.deletingPathExtension().lastPathComponent)
+            }
         }
 
         // The same package can be referenced by several projects in a
@@ -76,13 +80,23 @@ public struct ProjectScanner {
             ?? projects.first?.name
             ?? root.lastPathComponent
 
-        return ProjectInspection(
+        // Structure comes from the directory layout: with synchronized folder
+        // groups the project file says nothing about it at all.
+        let layout = LayoutScanner(
+            root: root,
+            targetNames: projects.flatMap(\.targets).map(\.name)
+        )
+
+        return ProjectModel(
             name: name,
             rootPath: root.path,
             workspacePath: workspaces.first.map(relativePath(of:)),
             projects: projects,
             schemes: schemes(in: projectPaths + workspaces),
-            packages: uniquePackages.sorted { $0.name.lowercased() < $1.name.lowercased() },
+            dependencies: uniquePackages.sorted { $0.name.lowercased() < $1.name.lowercased() },
+            configurations: configurations,
+            modules: layout.modules(),
+            features: layout.features(),
             source: SourceScanner(root: root).scan()
         )
     }

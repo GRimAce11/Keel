@@ -172,7 +172,7 @@ struct ProjectScannerTests {
         try withGeneratedProject { root in
             let inspection = try ProjectScanner(root: root).scan()
             let data = try JSONEncoder().encode(inspection)
-            let decoded = try JSONDecoder().decode(ProjectInspection.self, from: data)
+            let decoded = try JSONDecoder().decode(ProjectModel.self, from: data)
             #expect(decoded == inspection)
         }
     }

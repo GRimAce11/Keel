@@ -23,7 +23,7 @@ struct Inspect: ParsableCommand {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
 
-        let inspection: ProjectInspection
+        let inspection: ProjectModel
         do {
             inspection = try ProjectScanner(root: root).scan()
         } catch let error as ProjectScanner.ScanError {
@@ -43,14 +43,14 @@ struct Inspect: ParsableCommand {
 
     // MARK: - Report
 
-    private func render(_ inspection: ProjectInspection, console: Console) {
+    private func render(_ inspection: ProjectModel, console: Console) {
         console.heading(inspection.name)
 
         if let workspace = inspection.workspacePath {
             console.detail("Workspace         \(workspace)")
         }
-        if let platform = inspection.allTargets.compactMap(\.platform).first {
-            console.detail("Platform          \(platform)")
+        if !inspection.platforms.isEmpty {
+            console.detail("Platform          \(inspection.platforms.joined(separator: ", "))")
         }
         if let deployment = inspection.minimumDeploymentTarget {
             console.detail("Minimum OS        \(deployment)")
@@ -63,12 +63,14 @@ struct Inspect: ParsableCommand {
         }
 
         renderTargets(inspection, console: console)
+        renderModules(inspection, console: console)
+        renderFeatures(inspection, console: console)
         renderSchemes(inspection, console: console)
         renderPackages(inspection, console: console)
         renderSource(inspection, console: console)
     }
 
-    private func renderTargets(_ inspection: ProjectInspection, console: Console) {
+    private func renderTargets(_ inspection: ProjectModel, console: Console) {
         let targets = inspection.allTargets
         guard !targets.isEmpty else { return }
 
@@ -80,7 +82,32 @@ struct Inspect: ParsableCommand {
         }
     }
 
-    private func renderSchemes(_ inspection: ProjectInspection, console: Console) {
+    private func renderModules(_ inspection: ProjectModel, console: Console) {
+        guard !inspection.modules.isEmpty else { return }
+
+        console.heading("Modules (\(inspection.modules.count))")
+        let width = inspection.modules.map(\.name.count).max() ?? 0
+        for module in inspection.modules {
+            let name = module.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
+            let files = module.swiftFileCount == 1 ? "1 file" : "\(module.swiftFileCount) files"
+            console.detail("\(name)  \(files)")
+        }
+    }
+
+    private func renderFeatures(_ inspection: ProjectModel, console: Console) {
+        guard !inspection.features.isEmpty else { return }
+
+        console.heading("Features (\(inspection.features.count))")
+        let width = inspection.features.map(\.name.count).max() ?? 0
+        for feature in inspection.features {
+            let name = feature.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
+            let layers = feature.layers.isEmpty ? "" : "  \(feature.layers.joined(separator: ", "))"
+            let files = feature.swiftFileCount == 1 ? "1 file" : "\(feature.swiftFileCount) files"
+            console.detail("\(name)  \(files)\(layers)")
+        }
+    }
+
+    private func renderSchemes(_ inspection: ProjectModel, console: Console) {
         guard !inspection.schemes.isEmpty else { return }
 
         console.heading("Schemes (\(inspection.schemes.count))")
@@ -99,18 +126,18 @@ struct Inspect: ParsableCommand {
         }
     }
 
-    private func renderPackages(_ inspection: ProjectInspection, console: Console) {
-        guard !inspection.packages.isEmpty else { return }
+    private func renderPackages(_ inspection: ProjectModel, console: Console) {
+        guard !inspection.dependencies.isEmpty else { return }
 
-        console.heading("Package dependencies (\(inspection.packages.count))")
-        let width = inspection.packages.map(\.name.count).max() ?? 0
-        for package in inspection.packages {
+        console.heading("Package dependencies (\(inspection.dependencies.count))")
+        let width = inspection.dependencies.map(\.name.count).max() ?? 0
+        for package in inspection.dependencies {
             let name = package.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
             console.detail("\(name)  \(package.requirement ?? "")")
         }
     }
 
-    private func renderSource(_ inspection: ProjectInspection, console: Console) {
+    private func renderSource(_ inspection: ProjectModel, console: Console) {
         let source = inspection.source
         guard source.swiftFileCount > 0 else { return }
 
@@ -148,6 +175,11 @@ struct Inspect: ParsableCommand {
             testing.append("\(inspection.testTargets.count) test target\(inspection.testTargets.count == 1 ? "" : "s")")
         }
         console.detail("Testing           \(testing.isEmpty ? "none detected" : testing.joined(separator: ", "))")
+
+        if !inspection.configurations.isEmpty {
+            let names = Array(Set(inspection.configurations.map(\.name))).sorted()
+            console.detail("Configurations    \(names.joined(separator: ", "))")
+        }
 
         if inspection.testTargets.isEmpty {
             console.warn("No test target found.")

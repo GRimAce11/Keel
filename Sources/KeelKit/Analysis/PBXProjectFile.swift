@@ -138,6 +138,23 @@ struct PBXProjectFile {
         return merged
     }
 
+    // MARK: - Configurations
+
+    /// The project's build configuration names, in declaration order.
+    ///
+    /// Read from the project level rather than a target's, because that is
+    /// where the set of configurations is defined — a target can only pick from
+    /// them, not add to them.
+    func configurationNames() -> [String] {
+        guard
+            let id = rootProject?["buildConfigurationList"] as? String,
+            let list = object(id),
+            let ids = list["buildConfigurations"] as? [String]
+        else { return [] }
+
+        return objects(ids).compactMap { $0["name"] as? String }
+    }
+
     // MARK: - Packages
 
     func packages() -> [PackageDependency] {

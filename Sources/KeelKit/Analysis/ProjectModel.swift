@@ -1,19 +1,33 @@
 import Foundation
 
-/// What Keel determined about an existing project, entirely by reading files.
+/// Everything Keel determined about a project, by reading its files.
 ///
-/// Every value here is a fact taken from the project itself. Nothing is
-/// guessed, and nothing is filled in by an AI layer — anything Keel could not
-/// determine is absent rather than invented.
-public struct ProjectInspection: Codable, Sendable, Equatable {
+/// This is the one representation the rest of Keel is built on: `inspect`
+/// renders it, `document` will write from it, `check` will validate against it,
+/// and the optional AI layer will interpret it. Nothing downstream re-reads the
+/// project for itself, so there is a single definition of every fact.
+///
+/// Every value here comes from the project. Nothing is guessed, and anything
+/// Keel could not determine is absent rather than invented.
+public struct ProjectModel: Codable, Sendable, Equatable {
     public let name: String
     public let rootPath: String
     /// Present when the project is opened through a workspace.
     public let workspacePath: String?
+
     public let projects: [XcodeProject]
     public let schemes: [Scheme]
-    public let packages: [PackageDependency]
+    public let dependencies: [PackageDependency]
+    public let configurations: [BuildConfiguration]
+
+    /// Top-level source groupings, taken from the directory layout.
+    public let modules: [Module]
+    /// Feature folders, when the project is organised that way.
+    public let features: [Feature]
+
     public let source: SourceSummary
+
+    // MARK: - Derived
 
     public var allTargets: [Target] {
         projects.flatMap(\.targets)
@@ -25,6 +39,12 @@ public struct ProjectInspection: Codable, Sendable, Equatable {
 
     public var appTargets: [Target] {
         allTargets.filter { $0.productType == .application }
+    }
+
+    /// The platforms the targets build for, derived from their SDK.
+    public var platforms: [String] {
+        let names = allTargets.compactMap(\.platform).map(Platform.displayName(forSDK:))
+        return Array(Set(names)).sorted()
     }
 
     /// The lowest deployment target across every target that declares one.
@@ -116,6 +136,22 @@ public enum ProductType: String, Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - Platform
+
+public enum Platform {
+    /// `iphoneos` -> `iOS`. Reported as the name a developer would use.
+    public static func displayName(forSDK sdk: String) -> String {
+        switch sdk.lowercased() {
+        case let value where value.hasPrefix("iphone"): return "iOS"
+        case let value where value.hasPrefix("macosx"): return "macOS"
+        case let value where value.hasPrefix("watch"): return "watchOS"
+        case let value where value.hasPrefix("appletv"): return "tvOS"
+        case let value where value.hasPrefix("xr"): return "visionOS"
+        default: return sdk
+        }
+    }
+}
+
 // MARK: - Scheme
 
 public struct Scheme: Codable, Sendable, Equatable {
@@ -126,6 +162,13 @@ public struct Scheme: Codable, Sendable, Equatable {
     public let isShared: Bool
 }
 
+// MARK: - Configurations
+
+public struct BuildConfiguration: Codable, Sendable, Equatable {
+    public let name: String
+    public let projectName: String
+}
+
 // MARK: - Packages
 
 public struct PackageDependency: Codable, Sendable, Equatable {
@@ -133,6 +176,55 @@ public struct PackageDependency: Codable, Sendable, Equatable {
     public let url: String?
     public let requirement: String?
     public let isLocal: Bool
+}
+
+// MARK: - Modules
+
+/// A top-level source grouping, taken from the directory layout.
+public struct Module: Codable, Sendable, Equatable {
+    public let name: String
+    public let path: String
+    public let swiftFileCount: Int
+    public let role: Role
+
+    /// What a directory is for, inferred from its name.
+    ///
+    /// This is a naming convention, not a fact about the code, so it stays a
+    /// separate field from the name rather than being asserted as structure.
+    public enum Role: String, Codable, Sendable, Equatable {
+        case app
+        case core
+        case features
+        case shared
+        case designSystem
+        case resources
+        case tests
+        case other
+
+        init(directoryName: String) {
+            switch directoryName.lowercased() {
+            case "app", "application": self = .app
+            case "core", "infrastructure", "services": self = .core
+            case "features", "modules", "screens": self = .features
+            case "shared", "common", "components", "utilities": self = .shared
+            case "designsystem", "design", "ui", "theme": self = .designSystem
+            case "resources", "assets": self = .resources
+            case "tests", "test": self = .tests
+            default: self = .other
+            }
+        }
+    }
+}
+
+// MARK: - Features
+
+/// A feature folder, with whatever layers it is divided into.
+public struct Feature: Codable, Sendable, Equatable {
+    public let name: String
+    public let path: String
+    /// Immediate subdirectories, e.g. `Data`, `Domain`, `Presentation`.
+    public let layers: [String]
+    public let swiftFileCount: Int
 }
 
 // MARK: - Source
