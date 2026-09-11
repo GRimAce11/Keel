@@ -247,3 +247,103 @@ struct VersionNumberTests {
         #expect(!(VersionNumber("18.0") < VersionNumber("18")))
     }
 }
+
+// MARK: - Monorepos
+
+/// A project that shares a repository with other stacks.
+///
+/// The failure this guards against is quiet: Keel invoked at a monorepo root
+/// used to scan every Swift file under it, so a Vapor backend's types were
+/// counted as the app's and fed to architecture detection. Nothing errored —
+/// the numbers were simply wrong, which is the worst way for an analysis tool
+/// to fail.
+@Suite("Monorepo scoping")
+struct MonorepoTests {
+
+    private let console = Console(useColor: false)
+
+    /// `root/ios/<project>` alongside a Swift backend and other stacks.
+    private func withMonorepo<T>(_ body: (URL, URL) throws -> T) throws -> T {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-mono-\(UUID().uuidString)")
+        let staging = root.appendingPathComponent("staging")
+        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let configuration = ProjectConfiguration(
+            name: try ProjectName("Storefront"),
+            bundleIdentifierPrefix: "com.acme",
+            components: Set(Component.allCases)
+        )
+        let outcome = try ProjectGenerator(configuration: configuration, console: console)
+            .generate(in: staging, initializeGit: false)
+
+        // The shape a real monorepo uses: ios/Storefront.xcodeproj, with the
+        // folder named for the stack rather than the product.
+        let ios = root.appendingPathComponent("ios")
+        try FileManager.default.moveItem(at: outcome.projectDirectory, to: ios)
+        try FileManager.default.removeItem(at: staging)
+
+        // A Swift backend, which is the case that actually breaks things.
+        let backend = root.appendingPathComponent("backend/Sources/Server")
+        try FileManager.default.createDirectory(at: backend, withIntermediateDirectories: true)
+        for index in 1...6 {
+            try """
+                import Foundation
+
+                final class ServerViewModel\(index) {
+                    func handle() async throws {}
+                }
+                struct ServerRepository\(index) {}
+                """.write(
+                    to: backend.appendingPathComponent("Handler\(index).swift"),
+                    atomically: true, encoding: .utf8
+                )
+        }
+
+        return try body(root, ios)
+    }
+
+    @Test("Scanning a monorepo root sees only the iOS project")
+    func scopesToTheProject() throws {
+        try withMonorepo { root, ios in
+            let fromRoot = try ProjectScanner(root: root).scan()
+            let fromProject = try ProjectScanner(root: ios).scan()
+
+            // The project file's own location is what says where the app ends.
+            #expect(fromRoot.source.swiftFileCount == fromProject.source.swiftFileCount)
+            #expect(fromRoot.source.lineCount == fromProject.source.lineCount)
+            #expect(fromRoot.modules.map(\.name) == fromProject.modules.map(\.name))
+        }
+    }
+
+    @Test("A Swift backend never reaches the app's analysis")
+    func excludesOtherStacks() throws {
+        try withMonorepo { root, _ in
+            let model = try ProjectScanner(root: root).scan()
+            let names = model.analysis.declaredTypes.map(\.name)
+
+            #expect(!names.contains { $0.hasPrefix("ServerViewModel") })
+            #expect(!names.contains { $0.hasPrefix("ServerRepository") })
+        }
+    }
+
+    @Test("The name comes from the project file, not the folder it sits in")
+    func namesFromTheProjectFile() throws {
+        try withMonorepo { root, _ in
+            // The directory is called `ios`; the project is not.
+            let model = try ProjectScanner(root: root).scan()
+            #expect(model.name == "Storefront")
+        }
+    }
+
+    @Test("Paths are reported relative to the project, not the repository")
+    func reportsProjectRelativePaths() throws {
+        try withMonorepo { root, ios in
+            let model = try ProjectScanner(root: root).scan()
+
+            #expect(model.rootPath == ios.standardizedFileURL.path)
+            #expect(model.analysis.files.allSatisfy { !$0.path.hasPrefix("ios/") })
+        }
+    }
+}

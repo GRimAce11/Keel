@@ -45,6 +45,19 @@ public struct ProjectScanner {
             throw ScanError.noProjectFound(path: root.path)
         }
 
+        // Everything reported is scoped to the directory the project actually
+        // lives in, which is not always the one Keel was invoked from.
+        //
+        // In a monorepo — ios/, backend/, web/ — running `keel inspect` at the
+        // root would otherwise sweep a Swift backend into the app's source: its
+        // files counted, its types fed to architecture detection, a
+        // `ServerViewModel` read as a screen. The project file's own location
+        // is the only thing that says where the app ends.
+        let projectRoot = (workspaces.first ?? projectPaths.first)?
+            .deletingLastPathComponent()
+            .standardizedFileURL
+            ?? root
+
         var projects: [XcodeProject] = []
         var packages: [PackageDependency] = []
         var configurations: [BuildConfiguration] = []
@@ -60,7 +73,7 @@ public struct ProjectScanner {
             projects.append(
                 XcodeProject(
                     name: path.deletingPathExtension().lastPathComponent,
-                    path: relativePath(of: path),
+                    path: relativePath(of: path, from: projectRoot),
                     objectVersion: file.objectVersion,
                     usesSynchronizedFolders: file.usesSynchronizedFolders,
                     targets: file.targets()
@@ -81,24 +94,24 @@ public struct ProjectScanner {
             ?? projects.first?.name
             ?? root.lastPathComponent
 
-        let sourceScanner = SourceScanner(root: root)
+        let sourceScanner = SourceScanner(root: projectRoot)
 
         // Structure comes from the directory layout: with synchronized folder
         // groups the project file says nothing about it at all.
         let layout = LayoutScanner(
-            root: root,
+            root: projectRoot,
             targetNames: projects.flatMap(\.targets).map(\.name)
         )
 
         let modules = layout.modules()
         let features = layout.features()
         let summary = sourceScanner.scan()
-        let analysis = analyze(files: sourceScanner.swiftFiles())
+        let analysis = analyze(files: sourceScanner.swiftFiles(), relativeTo: projectRoot)
 
         return ProjectModel(
             name: name,
-            rootPath: root.path,
-            workspacePath: workspaces.first.map(relativePath(of:)),
+            rootPath: projectRoot.path,
+            workspacePath: workspaces.first.map { relativePath(of: $0, from: projectRoot) },
             projects: projects,
             schemes: schemes(in: projectPaths + workspaces),
             dependencies: uniquePackages.sorted { $0.name.lowercased() < $1.name.lowercased() },
@@ -125,9 +138,8 @@ public struct ProjectScanner {
     /// Files are parsed in parallel: a few hundred files is normal and each
     /// parse is independent, so this is the one place concurrency is worth the
     /// complexity.
-    private func analyze(files: [URL]) -> SourceAnalysis {
+    private func analyze(files: [URL], relativeTo root: URL) -> SourceAnalysis {
         let analyzer = SwiftSourceAnalyzer()
-        let root = self.root
 
         var results = [FileAnalysis?](repeating: nil, count: files.count)
         results.withUnsafeMutableBufferPointer { buffer in
@@ -219,9 +231,9 @@ public struct ProjectScanner {
         return results
     }
 
-    private func relativePath(of url: URL) -> String {
+    private func relativePath(of url: URL, from base: URL) -> String {
         let path = url.standardizedFileURL.path
-        let prefix = root.path + "/"
+        let prefix = base.path + "/"
         return path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
     }
 }
