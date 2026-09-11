@@ -1,32 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="603" viewBox="0 0 840 603" role="img" aria-label="keel new MyApp terminal session">
-  <rect width="840" height="603" rx="10" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="786" viewBox="0 0 840 786" role="img" aria-label="keel generating, extending and inspecting an iOS project">
+  <rect width="840" height="786" rx="10" fill="#0d1117"/>
   <rect width="840" height="36" rx="10" fill="#161b22"/>
   <rect y="26" width="840" height="10" fill="#161b22"/>
   <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
   <circle cx="42" cy="18" r="6" fill="#febc2e"/>
   <circle cx="62" cy="18" r="6" fill="#28c840"/>
   <text x="420.0" y="23" fill="#8b949e" font-size="12" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">keel</text>
-  <g font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace" font-size="13">
-    <text><tspan x="22.0" y="58.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="58.0" fill="#f0f6fc">keel new MyApp</tspan></text>
-    <text><tspan x="22.0" y="100.0" fill="#f0f6fc" font-weight="700">Project</tspan></text>
-    <text><tspan x="22.0" y="121.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="121.0" fill="#f0f6fc"> Bundle identifier prefix </tspan><tspan x="225.8" y="121.0" fill="#8b949e">(com.example) </tspan><tspan x="331.6" y="121.0" fill="#f0f6fc">com.acme</tspan></text>
-    <text><tspan x="22.0" y="142.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="142.0" fill="#f0f6fc"> Minimum iOS version </tspan><tspan x="188.1" y="142.0" fill="#8b949e">(17.0)</tspan></text>
-    <text><tspan x="22.0" y="184.0" fill="#f0f6fc" font-weight="700">Include</tspan></text>
-    <text><tspan x="22.0" y="205.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="205.0" fill="#f0f6fc"> Networking </tspan><tspan x="120.1" y="205.0" fill="#8b949e">— APIClient, endpoints, typed errors, retry </tspan><tspan x="452.3" y="205.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="226.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="226.0" fill="#f0f6fc"> Dependency injection </tspan><tspan x="195.7" y="226.0" fill="#8b949e">— AppContainer composition root </tspan><tspan x="437.2" y="226.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="247.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="247.0" fill="#f0f6fc"> Persistence </tspan><tspan x="127.7" y="247.0" fill="#8b949e">— SwiftData container and a store protocol </tspan><tspan x="452.3" y="247.0" fill="#8b949e">[Y/n]</tspan><tspan x="490.1" y="247.0" fill="#f0f6fc"> n</tspan></text>
-    <text><tspan x="22.0" y="268.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="268.0" fill="#f0f6fc"> Keychain storage </tspan><tspan x="165.5" y="268.0" fill="#8b949e">— Secure storage wrapping the Keychain API </tspan><tspan x="490.1" y="268.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="289.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="289.0" fill="#f0f6fc"> Localization </tspan><tspan x="135.2" y="289.0" fill="#8b949e">— String Catalog and typed accessors </tspan><tspan x="414.6" y="289.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="310.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="310.0" fill="#f0f6fc"> Unit tests </tspan><tspan x="120.1" y="310.0" fill="#8b949e">— Test target with stubs and ViewModel tests </tspan><tspan x="459.9" y="310.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="331.0" fill="#39c5cf" font-weight="700">?</tspan><tspan x="29.6" y="331.0" fill="#f0f6fc"> Example feature </tspan><tspan x="157.9" y="331.0" fill="#8b949e">— A working list + detail screen you can copy </tspan><tspan x="505.2" y="331.0" fill="#8b949e">[Y/n]</tspan></text>
-    <text><tspan x="22.0" y="373.0" fill="#f0f6fc" font-weight="700">Configuration</tspan></text>
-    <text><tspan x="22.0" y="394.0" fill="#8b949e">  Name              </tspan><tspan x="173.0" y="394.0" fill="#c9d1d9">MyApp</tspan></text>
-    <text><tspan x="22.0" y="415.0" fill="#8b949e">  Bundle identifier </tspan><tspan x="173.0" y="415.0" fill="#c9d1d9">com.acme.my-app</tspan></text>
-    <text><tspan x="22.0" y="436.0" fill="#8b949e">  Minimum iOS       </tspan><tspan x="173.0" y="436.0" fill="#c9d1d9">17.0</tspan></text>
-    <text><tspan x="22.0" y="457.0" fill="#8b949e">  Components        </tspan><tspan x="173.0" y="457.0" fill="#c9d1d9">Networking, Dependency injection,</tspan></text>
-    <text><tspan x="22.0" y="478.0" fill="#8b949e">                    </tspan><tspan x="173.0" y="478.0" fill="#c9d1d9">Keychain storage, Localization,</tspan></text>
-    <text><tspan x="22.0" y="499.0" fill="#8b949e">                    </tspan><tspan x="173.0" y="499.0" fill="#c9d1d9">Unit tests, Example feature</tspan></text>
-    <text><tspan x="22.0" y="541.0" fill="#d29922" font-weight="700">!</tspan><tspan x="29.6" y="541.0" fill="#c9d1d9"> Project generation is not implemented yet —</tspan></text>
-    <text><tspan x="22.0" y="562.0" fill="#c9d1d9">  nothing was written.</tspan></text>
+  <g font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace" font-size="13" xml:space="preserve">
+    <text><tspan x="22.0" y="58.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="58.0" fill="#f0f6fc">keel new Bookshelf --yes</tspan></text>
+    <text><tspan x="22.0" y="100.0" fill="#3fb950">✓</tspan><tspan x="37.1" y="100.0" fill="#8b949e">Wrote 48 files</tspan></text>
+    <text><tspan x="22.0" y="121.0" fill="#3fb950">✓</tspan><tspan x="37.1" y="121.0" fill="#8b949e">Bookshelf is ready.</tspan></text>
+    <text><tspan x="22.0" y="163.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="163.0" fill="#f0f6fc">keel add feature Library</tspan></text>
+    <text><tspan x="22.0" y="205.0" fill="#3fb950">✓</tspan><tspan x="37.1" y="205.0" fill="#8b949e">Added Library to Bookshelf/Features/Library</tspan></text>
+    <text><tspan x="22.0" y="247.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="247.0" fill="#f0f6fc">keel inspect</tspan></text>
+    <text><tspan x="22.0" y="289.0" fill="#f0f6fc" font-weight="700">Architecture</tspan></text>
+    <text><tspan x="37.1" y="310.0" fill="#8b949e">SwiftUI MVVM, organised by feature, wired through a composition</tspan></text>
+    <text><tspan x="37.1" y="331.0" fill="#8b949e">root, built on @Observable, async/await and SwiftData.</tspan></text>
+    <text><tspan x="37.1" y="373.0" fill="#8b949e">Presentation</tspan><tspan x="157.9" y="373.0" fill="#f0f6fc">MVVM</tspan><tspan x="301.3" y="373.0" fill="#39c5cf">from the code</tspan></text>
+    <text><tspan x="157.9" y="394.0" fill="#8b949e">8 SwiftUI views declared.</tspan></text>
+    <text><tspan x="157.9" y="415.0" fill="#8b949e">4 types named with a ViewModel suffix.</tspan></text>
+    <text><tspan x="157.9" y="436.0" fill="#8b949e">4 of those are @Observable or an ObservableObject.</tspan></text>
+    <text><tspan x="37.1" y="457.0" fill="#8b949e">Organisation</tspan><tspan x="157.9" y="457.0" fill="#f0f6fc">Feature-based</tspan><tspan x="301.3" y="457.0" fill="#d29922">from naming</tspan></text>
+    <text><tspan x="157.9" y="478.0" fill="#8b949e">3 feature folders found.</tspan></text>
+    <text><tspan x="37.1" y="499.0" fill="#8b949e">Feature layers</tspan><tspan x="157.9" y="499.0" fill="#f0f6fc">Consistent</tspan><tspan x="301.3" y="499.0" fill="#d29922">from naming</tspan></text>
+    <text><tspan x="157.9" y="520.0" fill="#8b949e">All 3 features are divided into Data, Domain</tspan></text>
+    <text><tspan x="157.9" y="541.0" fill="#8b949e">and Presentation.</tspan></text>
+    <text><tspan x="37.1" y="562.0" fill="#8b949e">Persistence</tspan><tspan x="157.9" y="562.0" fill="#f0f6fc">SwiftData</tspan><tspan x="301.3" y="562.0" fill="#39c5cf">from the code</tspan></text>
+    <text><tspan x="157.9" y="583.0" fill="#8b949e">SwiftData imported by 3 files.</tspan></text>
+    <text><tspan x="157.9" y="604.0" fill="#8b949e">1 type marked @Model.</tspan></text>
+    <text><tspan x="37.1" y="625.0" fill="#8b949e">Wiring</tspan><tspan x="157.9" y="625.0" fill="#f0f6fc">Composition root</tspan><tspan x="301.3" y="625.0" fill="#d29922">from naming</tspan></text>
+    <text><tspan x="157.9" y="646.0" fill="#8b949e">AppContainer declared in App/AppContainer.swift.</tspan></text>
+    <text><tspan x="22.0" y="688.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="688.0" fill="#f0f6fc">keel check</tspan></text>
+    <text><tspan x="22.0" y="730.0" fill="#3fb950">✓</tspan><tspan x="37.1" y="730.0" fill="#8b949e">Nothing to report.</tspan></text>
+    <text><tspan x="37.1" y="751.0" fill="#8b949e">Checked 48 Swift files against 8 rules.</tspan></text>
   </g>
 </svg>

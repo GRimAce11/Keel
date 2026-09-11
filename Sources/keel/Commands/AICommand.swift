@@ -227,6 +227,16 @@ extension AI {
             // saying so is cheaper than a confusing failure later.
             console.detail("")
             console.detail("Edit the config if this agent's flags differ from the ones above.")
+
+            // Ollama is the one whose default cannot be right for everyone: the
+            // model is part of the command, and every installation has pulled
+            // different ones.
+            if agent.id == "ollama" {
+                console.warn(
+                    "That includes the model name. Run `ollama list` and put one you "
+                    + "actually have into the config."
+                )
+            }
         }
     }
 }
