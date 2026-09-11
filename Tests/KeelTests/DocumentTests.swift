@@ -320,6 +320,11 @@ struct AIDocumentationTests {
 
         #expect(prompt.contains("do not invent"))
         #expect(prompt.contains("undetermined"))
+        // Data, not prose to paste: Keel owns the Markdown.
+        #expect(prompt.contains("single JSON object"))
+        for field in ["overview", "dataFlow", "conventions", "risks", "onboarding"] {
+            #expect(prompt.contains("\"\(field)\""), "prompt does not ask for \(field)")
+        }
     }
 
     @Test("Undetermined findings reach the prompt marked as undetermined")
@@ -332,55 +337,73 @@ struct AIDocumentationTests {
 
     // MARK: Rendering
 
-    @Test("An overview is fenced, attributed, and marked as unchecked")
+    @Test("An interpretation is fenced, attributed, and marked as unchecked")
     func fencesAndAttributes() throws {
-        let overview = ProjectDocument.Overview(
-            prose: "A small application.", agentName: "Claude Code"
+        let interpretation = ProjectDocument.Interpretation(
+            fields: ProjectInterpretation(overview: "A small application."),
+            agentName: "Claude Code"
         )
-        let markdown = try ProjectDocument(model: model(), overview: overview).markdown()
+        let markdown = try ProjectDocument(model: model(), interpretation: interpretation).markdown()
 
         #expect(markdown.contains(ProjectDocument.overviewStart))
         #expect(markdown.contains(ProjectDocument.overviewEnd))
-        #expect(markdown.contains("Written by Claude Code"))
+        #expect(markdown.contains("Interpretation from Claude Code"))
         // Unattributed prose in a file of measured facts reads as another fact.
-        #expect(markdown.contains("not checked by Keel"))
+        #expect(markdown.contains("Keel checked its shape, not its claims"))
         #expect(markdown.contains("A small application."))
     }
 
-    @Test("An overview adds a section and changes nothing else")
+    @Test("Keel writes the headings, not the agent")
+    func keelOwnsTheStructure() throws {
+        let interpretation = ProjectDocument.Interpretation(
+            fields: ProjectInterpretation(
+                overview: "Overview.",
+                dataFlow: "Flow.",
+                conventions: ["One convention."],
+                risks: ["One risk."],
+                onboarding: ["Start here."]
+            ),
+            agentName: "Agent"
+        )
+        let markdown = try ProjectDocument(model: model(), interpretation: interpretation).markdown()
+
+        // The agent supplies field values; every heading around them is Keel's.
+        for heading in ["### Data flow", "### Conventions noticed",
+                        "### Worth being careful about", "### Where to start"] {
+            #expect(markdown.contains(heading), "missing \(heading)")
+        }
+    }
+
+    @Test("An interpretation adds a section and changes nothing else")
     func leavesDerivedSectionsAlone() throws {
         let model = try model()
         let plain = ProjectDocument(model: model).markdown()
-        let withOverview = ProjectDocument(
+        let withAI = ProjectDocument(
             model: model,
-            overview: .init(prose: "Prose.", agentName: "Agent")
+            interpretation: .init(fields: ProjectInterpretation(overview: "Prose."), agentName: "Agent")
         ).markdown()
 
         #expect(!plain.contains(ProjectDocument.overviewStart))
 
-        // Removing the fenced block must give back exactly the plain document,
-        // which is what "interpretation cannot override facts" means in bytes.
-        let start = try #require(withOverview.range(of: ProjectDocument.overviewStart))
-        let end = try #require(withOverview.range(of: ProjectDocument.overviewEnd))
-
-        // The block and the separator inserted with it, and nothing else.
+        let start = try #require(withAI.range(of: ProjectDocument.overviewStart))
+        let end = try #require(withAI.range(of: ProjectDocument.overviewEnd))
         var cut = end.upperBound
-        if withOverview[cut...].hasPrefix("\n\n") {
-            cut = withOverview.index(cut, offsetBy: 2)
+        if withAI[cut...].hasPrefix("\n\n") {
+            cut = withAI.index(cut, offsetBy: 2)
         }
-        var stripped = withOverview
+        var stripped = withAI
         stripped.removeSubrange(start.lowerBound..<cut)
 
         #expect(stripped == plain)
     }
 
-    @Test("Without an overview the document is byte-identical to before the AI layer")
+    @Test("Without an interpretation the document is byte-identical to before the AI layer")
     func defaultIsUnchanged() throws {
         let model = try model()
         // Determinism is the default; --ai is the only thing that breaks it,
         // and only inside its own fence.
         #expect(ProjectDocument(model: model).markdown()
-                == ProjectDocument(model: model, overview: nil).markdown())
+                == ProjectDocument(model: model, interpretation: nil).markdown())
     }
 }
 
@@ -422,6 +445,7 @@ struct DocumentAICommandTests {
             #expect(result.succeeded)
             #expect(result.standardOutput.contains("FACTS"))
             #expect(result.standardOutput.contains("do not invent"))
+            #expect(result.standardOutput.contains("single JSON object"))
             // It is a dry run in both directions: no agent, and no file.
             #expect(!FileManager.default.fileExists(
                 atPath: root.appendingPathComponent("PROJECT.md").path
@@ -454,5 +478,116 @@ struct DocumentAICommandTests {
             )
             #expect(!contents.contains(ProjectDocument.overviewStart))
         }
+    }
+}
+
+// MARK: - Validating what an agent hands back
+
+/// The agent returns data and Keel writes the Markdown, so this is the layer
+/// that has to survive an agent which ignores instructions.
+@Suite("ProjectInterpretation")
+struct ProjectInterpretationTests {
+
+    @Test("A well-formed reply parses into fields")
+    func parsesFields() throws {
+        let parsed = try ProjectInterpretation.parse("""
+            {"overview": "A small app.", "dataFlow": "View to view model.",
+             "conventions": ["One."], "risks": ["Two."], "onboarding": ["Three."]}
+            """)
+
+        #expect(parsed.overview == "A small app.")
+        #expect(parsed.dataFlow == "View to view model.")
+        #expect(parsed.conventions == ["One."])
+        #expect(parsed.risks == ["Two."])
+        #expect(parsed.onboarding == ["Three."])
+    }
+
+    @Test("A fenced reply with preamble still parses")
+    func toleratesWrapping() throws {
+        // Wrapping JSON in a code block and a sentence is a formatting habit,
+        // not a refusal, and failing on it would make the feature unusable.
+        let parsed = try ProjectInterpretation.parse("""
+            Sure! Here is the JSON:
+            ```json
+            {"overview": "A small app."}
+            ```
+            Let me know if you need more.
+            """)
+
+        #expect(parsed.overview == "A small app.")
+    }
+
+    @Test("Markdown an agent adds is stripped, because Keel owns the structure")
+    func stripsMarkdown() throws {
+        let parsed = try ProjectInterpretation.parse("""
+            {"overview": "## Injected heading", "conventions": ["- bulleted", "**bold**"]}
+            """)
+
+        // A `##` arriving in a field would open a section indistinguishable
+        // from one Keel wrote.
+        #expect(parsed.overview == "Injected heading")
+        #expect(parsed.conventions == ["bulleted", "bold"])
+    }
+
+    @Test("Blank and whitespace-only entries are dropped rather than rendered")
+    func dropsEmptyEntries() throws {
+        let parsed = try ProjectInterpretation.parse("""
+            {"overview": "   ", "conventions": ["Real.", "   ", ""]}
+            """)
+
+        #expect(parsed.overview == nil)
+        #expect(parsed.conventions == ["Real."])
+    }
+
+    @Test("One field cannot become the whole document")
+    func enforcesLimits() throws {
+        let long = String(repeating: "a", count: 5_000)
+        let many = (1...40).map { "\"item \($0)\"" }.joined(separator: ",")
+        let parsed = try ProjectInterpretation.parse(
+            "{\"overview\": \"\(long)\", \"risks\": [\(many)]}"
+        )
+
+        let overview = try #require(parsed.overview)
+        #expect(overview.count <= ProjectInterpretation.Limit.prose + 1)
+        #expect(overview.hasSuffix("…"))
+        #expect(parsed.risks.count == ProjectInterpretation.Limit.items)
+    }
+
+    @Test("A partial reply is a partial answer, not a failure")
+    func acceptsPartialReplies() throws {
+        let parsed = try ProjectInterpretation.parse("{\"risks\": [\"Only this.\"]}")
+
+        #expect(parsed.overview == nil)
+        #expect(parsed.risks == ["Only this."])
+        #expect(!parsed.isEmpty)
+    }
+
+    @Test("A reply that is not the requested object is refused")
+    func refusesProse() {
+        #expect(throws: ProjectInterpretation.ParseError.notJSON) {
+            try ProjectInterpretation.parse("Sure, here is a nice paragraph about your project.")
+        }
+        #expect(throws: ProjectInterpretation.ParseError.notJSON) {
+            try ProjectInterpretation.parse("{ not json at all }")
+        }
+    }
+
+    @Test("A reply with nothing usable in it is refused rather than rendered empty")
+    func refusesEmptyObjects() {
+        #expect(throws: ProjectInterpretation.ParseError.empty) {
+            try ProjectInterpretation.parse("{}")
+        }
+        #expect(throws: ProjectInterpretation.ParseError.empty) {
+            try ProjectInterpretation.parse("{\"overview\": \"\", \"risks\": []}")
+        }
+    }
+
+    @Test("Fields round-trip through Codable")
+    func isCodable() throws {
+        let original = ProjectInterpretation(
+            overview: "A.", dataFlow: "B.", conventions: ["C."], risks: ["D."], onboarding: ["E."]
+        )
+        let data = try JSONEncoder().encode(original)
+        #expect(try JSONDecoder().decode(ProjectInterpretation.self, from: data) == original)
     }
 }

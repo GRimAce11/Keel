@@ -7,6 +7,10 @@ import Foundation
 /// to interpret a summary the project's own files produced, not to read the
 /// project. Nobody's source leaves the machine.
 ///
+/// It asks for data, not prose to paste. The agent fills named fields and Keel
+/// writes the Markdown, so the shape of the document never depends on the agent
+/// having followed formatting instructions.
+///
 /// The prompt is a value rather than a side effect so it can be printed,
 /// inspected and tested. `--show-prompt` exists because "Keel never invokes an
 /// agent silently" is worth more when you can see exactly what it would say.
@@ -20,18 +24,28 @@ public struct DocumentationPrompt {
 
     public func text() -> String {
         """
-        You are orienting a developer who is about to start work on an iOS \
-        codebase they have never seen.
+        You are helping describe an iOS codebase to a developer who has never \
+        seen it.
 
-        Write two or three short paragraphs of plain prose. Use only the facts \
+        Reply with a single JSON object and nothing else. Use only the facts \
         listed under FACTS below. They were derived by static analysis of the \
-        project, and they are all you know: do not invent file names, classes, \
+        project and they are all you know: do not invent file names, classes, \
         libraries, history or intentions that are not listed. Where a fact is \
-        marked undetermined, say nothing about it rather than guessing.
+        marked undetermined, leave it alone rather than guessing.
 
-        Do not use headings, bullet points, code blocks or Markdown emphasis. \
-        Do not restate the facts as a list — explain what they add up to for \
-        someone about to make their first change.
+        The object has these keys, all optional — omit any you cannot fill from \
+        the facts rather than padding it:
+
+        {
+          "overview":    "Two or three sentences on what this project is and how it is put together.",
+          "dataFlow":    "One or two sentences on how a request moves through the app.",
+          "conventions": ["A convention the facts show this project follows."],
+          "risks":       ["Something a new contributor should be careful about."],
+          "onboarding":  ["Where to start reading, and why."]
+        }
+
+        Plain sentences only. No Markdown, no headings, no bullet characters — \
+        the formatting is not yours to choose.
 
         FACTS
 

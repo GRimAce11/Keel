@@ -26,7 +26,7 @@ struct Document: ParsableCommand {
     @Flag(name: .shortAndLong, help: "Overwrite a file Keel did not write.")
     var force = false
 
-    @Flag(name: .customLong("ai"), help: "Add an overview written by the agent you selected.")
+    @Flag(name: .customLong("ai"), help: "Add an interpretation from the agent you selected.")
     var useAI = false
 
     @Flag(name: .customLong("show-prompt"), help: "Print what --ai would send, and send nothing.")
@@ -51,7 +51,7 @@ struct Document: ParsableCommand {
 
         let markdown = ProjectDocument(
             model: model,
-            overview: useAI ? try overview(for: model, console: console) : nil
+            interpretation: useAI ? try interpretation(for: model, console: console) : nil
         ).markdown()
 
         if toStandardOutput {
@@ -83,10 +83,10 @@ struct Document: ParsableCommand {
     /// The document is the thing being produced. Losing it because a network
     /// call failed would punish someone for asking for a bonus, so an agent
     /// that errors costs the overview and nothing else.
-    private func overview(
+    private func interpretation(
         for model: ProjectModel,
         console: Console
-    ) throws -> ProjectDocument.Overview? {
+    ) throws -> ProjectDocument.Interpretation? {
         let provider: CommandLineAgent
         do {
             provider = try CommandLineAgent.resolve()
@@ -101,17 +101,28 @@ struct Document: ParsableCommand {
         let name = Agent.known(id: provider.selection.agentID)?.name
             ?? provider.selection.agentID
 
-        console.step("Asking \(name) for an overview")
+        console.step("Asking \(name) to interpret the facts")
         console.detail("Runs    \(provider.invocation)")
         // Worth stating plainly: this is the one command that sends anything
         // anywhere, and what it sends is the analysis, not the code.
         console.detail("Sends   the facts in this document — no source code")
 
+        let reply: String
         do {
-            let prose = try provider.complete(prompt: DocumentationPrompt(model: model).text())
-            return ProjectDocument.Overview(prose: prose, agentName: name)
+            reply = try provider.complete(prompt: DocumentationPrompt(model: model).text())
         } catch let error as AIError {
-            console.warn("No overview: \(error.description)")
+            console.warn("No interpretation: \(error.description)")
+            console.detail("The rest of the document is unaffected.")
+            return nil
+        }
+
+        // Keel validates the shape before anything reaches the document. An
+        // agent that ignored the format costs its section, not the file.
+        do {
+            let fields = try ProjectInterpretation.parse(reply)
+            return ProjectDocument.Interpretation(fields: fields, agentName: name)
+        } catch let error as ProjectInterpretation.ParseError {
+            console.warn("No interpretation: \(error.description)")
             console.detail("The rest of the document is unaffected.")
             return nil
         }
