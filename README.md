@@ -153,13 +153,26 @@ never written.
 ## 🚀 Install
 
 ```bash
+brew install GRimAce11/tap/keel
+```
+
+<details>
+<summary><b>From source</b></summary>
+
+<br>
+
+```bash
 git clone https://github.com/GRimAce11/Keel.git
 cd Keel
 swift build -c release
 cp .build/release/keel /usr/local/bin/
 ```
 
-<sub>Requires macOS 13+. Homebrew distribution is planned.</sub>
+</details>
+
+<sub>Requires macOS 13+. Building from source needs Xcode 16.3 or newer, for
+Swift 6.1. Keel is distributed from its own tap rather than homebrew-core,
+which has notability requirements a young project does not meet.</sub>
 
 <br>
 
@@ -317,7 +330,7 @@ starting with a digit are caught before anything is written.
 | 🔨 | AI-assisted documentation | next |
 | ⚪ | `keel check` and `keel doctor` | |
 | ⚪ | `keel add feature` | |
-| ⚪ | Homebrew distribution | |
+| ✅ | Homebrew distribution | done |
 
 </details>
 
