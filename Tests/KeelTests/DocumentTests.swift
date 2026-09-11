@@ -591,3 +591,125 @@ struct ProjectInterpretationTests {
         #expect(try JSONDecoder().decode(ProjectInterpretation.self, from: data) == original)
     }
 }
+
+// MARK: - Freshness
+
+/// A Markdown diff says lines moved; it cannot say a feature was added. The
+/// fingerprint is what lets `--check` answer the second question.
+@Suite("DocumentFingerprint")
+struct DocumentFingerprintTests {
+
+    private let console = Console(useColor: false)
+
+    private func withProject<T>(_ body: (URL) throws -> T) throws -> T {
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-fresh-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let configuration = ProjectConfiguration(
+            name: try ProjectName("Probe"),
+            bundleIdentifierPrefix: "com.acme",
+            components: Set(Component.allCases)
+        )
+        let outcome = try ProjectGenerator(configuration: configuration, console: console)
+            .generate(in: destination, initializeGit: false)
+        return try body(outcome.projectDirectory)
+    }
+
+    @Test("A document carries a fingerprint that survives a round trip")
+    func embedsAndExtracts() throws {
+        try withProject { root in
+            let model = try ProjectScanner(root: root).scan()
+            let markdown = ProjectDocument(model: model).markdown()
+
+            let extracted = try #require(DocumentFingerprint.extract(from: markdown))
+            #expect(extracted == DocumentFingerprint(model: model))
+            // Invisible when rendered: it lives in a comment.
+            #expect(markdown.contains("<!-- keel:fingerprint "))
+        }
+    }
+
+    @Test("An unchanged project reports no changes")
+    func detectsNoChange() throws {
+        try withProject { root in
+            let model = try ProjectScanner(root: root).scan()
+            let fingerprint = DocumentFingerprint(model: model)
+            #expect(fingerprint.changes(to: fingerprint).isEmpty)
+        }
+    }
+
+    @Test("Adding a feature is reported as adding that feature")
+    func namesWhatChanged() throws {
+        try withProject { root in
+            let before = DocumentFingerprint(model: try ProjectScanner(root: root).scan())
+
+            _ = try FeatureGenerator(
+                model: try ProjectScanner(root: root).scan(), console: console
+            ).generate(named: "Profile")
+
+            let after = DocumentFingerprint(model: try ProjectScanner(root: root).scan())
+            #expect(before.changes(to: after).contains("Added feature Profile"))
+        }
+    }
+
+    @Test("Removals are reported too, not only additions")
+    func reportsRemovals() throws {
+        try withProject { root in
+            let before = DocumentFingerprint(model: try ProjectScanner(root: root).scan())
+
+            try FileManager.default.removeItem(
+                at: root.appendingPathComponent("Probe/Features/Articles")
+            )
+
+            let after = DocumentFingerprint(model: try ProjectScanner(root: root).scan())
+            #expect(before.changes(to: after).contains("Removed feature Articles"))
+        }
+    }
+
+    @Test("An architecture verdict changing is a reason to re-read the document")
+    func reportsArchitectureChanges() throws {
+        let before = DocumentFingerprint(model: try model(architecture: "MVVM"))
+        let after = DocumentFingerprint(model: try model(architecture: "UIKit MVC"))
+
+        #expect(before.changes(to: after).contains {
+            $0.contains("Presentation changed from MVVM to UIKit MVC")
+        })
+    }
+
+    /// A model differing only in its presentation verdict.
+    private func model(architecture value: String) throws -> ProjectModel {
+        ProjectModel(
+            name: "Probe", rootPath: "/tmp/Probe", workspacePath: nil,
+            projects: [], schemes: [], dependencies: [], configurations: [],
+            modules: [], features: [],
+            source: SourceSummary(
+                swiftFileCount: 1, lineCount: 1,
+                importsSwiftUI: value == "MVVM", importsUIKit: value != "MVVM",
+                usesObservationMacro: false, usesObservableObject: false,
+                usesAsyncAwait: false, usesCombine: false,
+                usesSwiftData: false, usesCoreData: false,
+                usesSwiftTesting: false, usesXCTest: false
+            ),
+            analysis: SourceAnalysis(files: []),
+            architecture: Architecture(
+                presentation: Finding(value: value == "MVVM" ? .mvvm : .mvc,
+                                      support: .observed, evidence: []),
+                organisation: Finding(value: .unknown, support: .undetermined, evidence: []),
+                featureLayering: Finding(value: .unknown, support: .undetermined, evidence: []),
+                observation: Finding(value: .unknown, support: .undetermined, evidence: []),
+                concurrency: Finding(value: .unknown, support: .undetermined, evidence: []),
+                persistence: Finding(value: .unknown, support: .undetermined, evidence: []),
+                wiring: Finding(value: .unknown, support: .undetermined, evidence: [])
+            )
+        )
+    }
+
+    @Test("A document with no fingerprint yields nothing rather than a guess")
+    func refusesToGuess() {
+        // Hand-written, or from a Keel too old to leave one. "Cannot tell" is
+        // the honest answer and the command says so.
+        #expect(DocumentFingerprint.extract(from: "# My notes\n\nWritten by hand.") == nil)
+        #expect(DocumentFingerprint.extract(from: "<!-- keel:fingerprint not json -->") == nil)
+    }
+}

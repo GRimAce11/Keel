@@ -71,6 +71,10 @@ public struct ProjectDocument {
             source(),
         ].compactMap { $0 }
 
+        // Last, and invisible when rendered: what this document was written
+        // about, so `--check` can say what changed rather than only that
+        // something did.
+        sections.append(DocumentFingerprint(model: model).embedded())
         sections.append(footer())
 
         return sections.joined(separator: "\n\n") + "\n"

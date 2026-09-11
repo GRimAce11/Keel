@@ -261,6 +261,29 @@ The output is deterministic: no timestamp, nothing that changes between runs
 unless the project changed. Re-running on an unchanged project produces an
 empty diff, which is what makes it safe to commit and regenerate.
 
+Because it is safe to commit, it can go stale — so it can be checked:
+
+```bash
+keel document --check    # writes nothing, exits non-zero when out of date
+```
+
+```text
+✗ PROJECT.md is out of date.
+
+  Added feature Settings
+  Added package dependency Alamofire
+
+  Run `keel document` to bring it up to date.
+```
+
+It names what changed rather than only that something did, because a Markdown
+diff can say lines moved but not that a feature was added. Each document carries
+a small record of the project it described, in an HTML comment that renders to
+nothing. A document written by hand has no such record, and `--check` says it
+cannot tell rather than guessing.
+
+Drop it in CI next to your tests and documentation stops drifting.
+
 > [!NOTE]
 > Keel replaces its own `PROJECT.md` without asking, and refuses to replace one
 > it did not write. Pass `--force` if you mean it.

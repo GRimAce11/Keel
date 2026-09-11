@@ -32,6 +32,12 @@ struct Document: ParsableCommand {
     @Flag(name: .customLong("no-ai"), help: "Guarantee no agent runs, whatever is configured.")
     var noAI = false
 
+    @Flag(name: .customLong("check"), help: "Report whether PROJECT.md is out of date, and write nothing.")
+    var checkOnly = false
+
+    @Flag(name: .customLong("update"), help: "Regenerate PROJECT.md. The default behaviour, named for scripts.")
+    var update = false
+
     @Flag(name: .customLong("show-prompt"), help: "Print what --ai would send, and send nothing.")
     var showPrompt = false
 
@@ -42,6 +48,10 @@ struct Document: ParsableCommand {
         // exactly the wrong instinct for a flag about permission.
         if useAI && noAI {
             console.error("--ai and --no-ai contradict each other.")
+            throw ExitCode.failure
+        }
+        if checkOnly && update {
+            console.error("--check and --update contradict each other.")
             throw ExitCode.failure
         }
 
@@ -57,6 +67,11 @@ struct Document: ParsableCommand {
 
         if showPrompt {
             print(DocumentationPrompt(model: model).text())
+            return
+        }
+
+        if checkOnly {
+            try reportFreshness(of: model, console: console)
             return
         }
 
@@ -84,6 +99,51 @@ struct Document: ParsableCommand {
 
         console.success("Wrote \(displayPath(of: destination, from: model))")
         console.detail(model.architecture.summary)
+    }
+
+    // MARK: - Freshness
+
+    /// Compares the document on disk against the project as it is now.
+    ///
+    /// Never writes, so it is safe in CI as a gate. A document with no
+    /// fingerprint — hand-written, or from a Keel too old to leave one — gets
+    /// "cannot tell" rather than a guess dressed as a verdict.
+    private func reportFreshness(of model: ProjectModel, console: Console) throws {
+        let destination = output.map { URL(fileURLWithPath: $0) }
+            ?? URL(fileURLWithPath: model.rootPath).appendingPathComponent("PROJECT.md")
+        let name = destination.lastPathComponent
+
+        guard let existing = try? String(contentsOf: destination, encoding: .utf8) else {
+            console.error("\(name) does not exist yet.")
+            console.detail("Run `keel document` to write it.")
+            throw ExitCode.failure
+        }
+
+        guard let previous = DocumentFingerprint.extract(from: existing) else {
+            console.warn("\(name) carries no record of what it described.")
+            console.detail(
+                ProjectDocument.isGenerated(existing)
+                    ? "It was written by a version of Keel that did not leave one."
+                    : "It was not written by Keel, so there is nothing to compare."
+            )
+            console.detail("Keel cannot tell whether it is current.")
+            throw ExitCode.failure
+        }
+
+        let changes = previous.changes(to: DocumentFingerprint(model: model))
+        guard !changes.isEmpty else {
+            console.success("\(name) is up to date.")
+            return
+        }
+
+        console.failure("\(name) is out of date.")
+        console.write()
+        for change in changes {
+            console.detail(change)
+        }
+        console.write()
+        console.detail("Run `keel document` to bring it up to date.")
+        throw ExitCode.failure
     }
 
     // MARK: - Whether to ask at all
