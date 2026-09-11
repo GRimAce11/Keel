@@ -132,14 +132,27 @@ struct CLITests {
     }
 
     @Test(
-        "Unimplemented commands exit non-zero and say so",
-        arguments: ["check", "doctor"]
+        "Every command is implemented",
+        arguments: ["new", "document", "inspect", "check", "doctor", "ai"]
     )
-    func unimplementedCommandsReportClearly(command: String) throws {
-        let result = try CLIRunner.run([command])
-        // Exiting zero would let a CI pipeline "pass" a step that did nothing.
-        #expect(result.succeeded == false)
-        #expect(result.combinedOutput.contains("not implemented"))
+    func noCommandClaimsToBeUnimplemented(command: String) throws {
+        // The Unimplemented helper is gone. This is what stops it coming back
+        // as a stub that exits zero having done nothing.
+        let result = try CLIRunner.run([command, "--help"])
+        #expect(result.succeeded)
+        #expect(!result.combinedOutput.contains("not implemented"))
+    }
+
+    @Test("check and doctor read a real project")
+    func checkAndDoctorRun() throws {
+        let check = try CLIRunner.run(["check", NSTemporaryDirectory()])
+        #expect(check.succeeded == false)
+        #expect(check.combinedOutput.contains("No .xcodeproj"))
+
+        // doctor works with no project at all, because "is this machine ready"
+        // is a fair question to ask anywhere.
+        let doctor = try CLIRunner.run(["doctor", NSTemporaryDirectory()])
+        #expect(doctor.combinedOutput.contains("Toolchain"))
     }
 
     @Test("ai reports what is installed without running any of it")

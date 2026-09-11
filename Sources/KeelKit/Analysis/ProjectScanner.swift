@@ -17,7 +17,7 @@ public struct ProjectScanner {
             case .noProjectFound(let path):
                 return """
                     No .xcodeproj or .xcworkspace found in \(path). \
-                    Run keel inspect from a project directory, or pass a path.
+                    Run this from a project directory, or pass a path.
                     """
             case .unreadableProject(let detail):
                 return detail

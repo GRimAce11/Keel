@@ -57,8 +57,20 @@ public struct Console: Sendable {
         print("\(styled("!", .yellow)) \(text)")
     }
 
+    /// The command itself failed. Goes to stderr, so a caller redirecting
+    /// output still sees it.
     public func error(_ text: String) {
         FileHandle.standardError.write(Data("\(styled("✗", .red)) \(text)\n".utf8))
+    }
+
+    /// Something Keel found wrong with the project, as opposed to something
+    /// wrong with the run.
+    ///
+    /// Goes to stdout, because for a command whose output *is* its findings,
+    /// splitting them across two streams scrambles their order the moment
+    /// anything is piped.
+    public func failure(_ text: String) {
+        print("\(styled("✗", .red)) \(text)")
     }
 
     public func detail(_ text: String) {

@@ -17,9 +17,9 @@
 ---
 
 > [!NOTE]
-> **Early development.** `keel new`, `keel inspect`, `keel document` and
-> `keel ai` all work today. `check` and `doctor` are declared but not
-> implemented yet — see the [roadmap](#-roadmap).
+> **Early development.** Every command listed below works. The API is not
+> stable yet, and rules may be added to `keel check` — see the
+> [roadmap](#-roadmap).
 
 <br>
 
@@ -120,8 +120,8 @@ flowchart TD
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
-| ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
-| 🩺 | `keel doctor` | Diagnose the toolchain and project | ⚪ Planned |
+| ✅ | `keel check` | Validate a project against its architecture rules | ✅ Working |
+| 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
 
 <br>
@@ -296,6 +296,31 @@ If the agent fails — no quota, no network, wrong flags — you get the documen
 anyway, with a warning and no overview. Losing a report because a bonus
 paragraph failed would be a poor trade.
 
+### Validating and diagnosing
+
+```bash
+keel check            # findings, exits non-zero on errors
+keel check --strict   # warnings fail too, for CI
+keel check --json
+keel doctor           # can this machine build what Keel generates?
+```
+
+`check` separates what it is *sure* of from what it *suspects*, and the split is
+the point:
+
+| | |
+|---|---|
+| **error** | Structural, with a definite consequence. A `@Model` type in a file that does not import SwiftData; a scheme under `xcuserdata` that CI cannot see. |
+| **warning** | Rests on a naming convention, or on something syntax cannot fully see. A `*ViewModel` that is not `@MainActor` — which may inherit isolation Keel cannot follow, and the finding says so. |
+
+Only errors fail the command by default. A checker that failed builds over a
+naming convention would be turned off within a week, so a convention never gets
+to be an error.
+
+Keel's own generated projects pass every rule, and a test asserts it — shipping a
+generator whose output fails its own checker would make the checker impossible
+to take seriously.
+
 <details>
 <summary><b>All options</b></summary>
 
@@ -349,9 +374,9 @@ starting with a digit are caught before anything is written.
 | ✅ | `keel document` without AI | done |
 | ✅ | AI agent detection & provider abstraction | done |
 | ✅ | AI-assisted documentation | done |
-| 🔨 | `keel check` and `keel doctor` | next |
-| ⚪ | `keel add feature` | |
+| ✅ | `keel check` and `keel doctor` | done |
 | ✅ | Homebrew distribution | done |
+| 🔨 | `keel add feature` | next |
 
 </details>
 
