@@ -63,9 +63,9 @@ public struct TypeDeclaration: Codable, Sendable, Equatable {
 
 /// Every fact parsing found across a project.
 ///
-/// Phase 11 reads this to infer architecture, and `document` reads it to
-/// describe the codebase. Both consume the same facts, so a claim made in one
-/// cannot contradict the other.
+/// `ArchitectureDetector` reads this to infer how a project is built, and
+/// `document` reads it to describe the codebase. Both consume the same facts,
+/// so a claim made in one cannot contradict the other.
 public struct SourceAnalysis: Codable, Sendable, Equatable {
     public let files: [FileAnalysis]
 
@@ -81,6 +81,25 @@ public struct SourceAnalysis: Codable, Sendable, Equatable {
     /// second mention of a type rather than another type.
     public var declaredTypes: [TypeDeclaration] {
         types.filter { $0.kind != .extensionOf }
+    }
+
+    /// The same analysis with test sources left out.
+    ///
+    /// A test double imitates production code on purpose. A stub conforming to
+    /// `APIClientProtocol` says nothing about how the app is built, and
+    /// counting one would let a test suite change the architecture Keel
+    /// reports. Test files are recognised by a `Tests` suffix on a path
+    /// component, which is all the layout offers.
+    public func excludingTests() -> SourceAnalysis {
+        SourceAnalysis(files: files.filter { !Self.isTestPath($0.path) })
+    }
+
+    static func isTestPath(_ path: String) -> Bool {
+        path.split(separator: "/").contains { component in
+            component.lowercased()
+                .replacingOccurrences(of: ".swift", with: "")
+                .hasSuffix("tests")
+        }
     }
 
     public var fileCount: Int { files.count }

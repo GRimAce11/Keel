@@ -69,6 +69,48 @@ struct Inspect: ParsableCommand {
         renderPackages(inspection, console: console)
         renderSource(inspection, console: console)
         renderDeclarations(inspection, console: console)
+        renderArchitecture(inspection, console: console)
+    }
+
+    /// What the facts above add up to.
+    ///
+    /// Reported last and with its evidence attached, so a reader who disagrees
+    /// with a conclusion can see exactly which counts produced it. The right
+    /// column says whether a finding came from the code or from what someone
+    /// named a folder — a distinction worth more than the verdict itself.
+    private func renderArchitecture(_ inspection: ProjectModel, console: Console) {
+        let architecture = inspection.architecture
+        let findings = architecture.findings
+
+        console.heading("Architecture")
+        console.detail(architecture.summary)
+        // Worth saying, because these counts are deliberately smaller than the
+        // ones above: a test double imitates production code on purpose.
+        console.detail("Counted from the app's own source; test targets are left out.")
+        console.write()
+
+        let labelWidth = findings.map(\.dimension.count).max() ?? 0
+        let valueWidth = findings.map(\.value.count).max() ?? 0
+        let indent = String(repeating: " ", count: labelWidth + 2)
+
+        for finding in findings {
+            let label = finding.dimension.padding(toLength: labelWidth, withPad: " ", startingAt: 0)
+            // An undetermined finding already says so in its value; repeating
+            // it in the support column would be noise.
+            let support = finding.support == .undetermined
+                ? ""
+                : "  \(finding.support.displayName)"
+            let value = finding.value.padding(
+                toLength: support.isEmpty ? finding.value.count : valueWidth,
+                withPad: " ",
+                startingAt: 0
+            )
+            console.detail("\(label)  \(value)\(support)")
+
+            for line in finding.evidence {
+                console.detail("\(indent)\(line)")
+            }
+        }
     }
 
     private func renderTargets(_ inspection: ProjectModel, console: Console) {

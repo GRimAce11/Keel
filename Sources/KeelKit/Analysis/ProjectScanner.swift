@@ -89,6 +89,11 @@ public struct ProjectScanner {
             targetNames: projects.flatMap(\.targets).map(\.name)
         )
 
+        let modules = layout.modules()
+        let features = layout.features()
+        let summary = sourceScanner.scan()
+        let analysis = analyze(files: sourceScanner.swiftFiles())
+
         return ProjectModel(
             name: name,
             rootPath: root.path,
@@ -97,10 +102,18 @@ public struct ProjectScanner {
             schemes: schemes(in: projectPaths + workspaces),
             dependencies: uniquePackages.sorted { $0.name.lowercased() < $1.name.lowercased() },
             configurations: configurations,
-            modules: layout.modules(),
-            features: layout.features(),
-            source: sourceScanner.scan(),
-            analysis: analyze(files: sourceScanner.swiftFiles())
+            modules: modules,
+            features: features,
+            source: summary,
+            analysis: analysis,
+            architecture: ArchitectureDetector(
+                modules: modules,
+                features: features,
+                // Detection reads production code only. A test double imitates
+                // the real thing on purpose, and counting one would let the
+                // test suite change the architecture Keel reports.
+                analysis: analysis.excludingTests()
+            ).detect()
         )
     }
 

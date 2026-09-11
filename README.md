@@ -119,7 +119,7 @@ flowchart TD
 |:--:|---|---|:--:|
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ⚪ Planned |
-| 🔍 | `keel inspect` | Report targets, schemes, dependencies | ✅ Working |
+| 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ⚪ Planned |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ⚪ Planned |
@@ -177,13 +177,36 @@ keel new MyApp --bundle-id com.acme --ios 18.0
 
 ```bash
 cd SomeApp
-keel inspect          # targets, schemes, dependencies, source summary
+keel inspect          # targets, schemes, dependencies, source, architecture
 keel inspect --json   # the same, as JSON
 ```
 
 Everything reported is read from the project's own files — no `xcodebuild`, no
 network, no AI. It works on a project that does not currently compile, which is
 often exactly when you need to understand it.
+
+The last section names the architecture — MVVM or not, feature-based or
+layered, `@Observable` or `ObservableObject`, where dependencies come from —
+and shows the counts behind each conclusion. Every finding also says whether it
+came from the code or from what someone named a folder, because those are not
+the same claim:
+
+```
+Architecture
+  SwiftUI MVVM, organised by feature, wired through a composition root,
+  built on @Observable, async/await and SwiftData.
+  Counted from the app's own source; test targets are left out.
+
+  Presentation    MVVM              from the code
+                  6 SwiftUI views declared.
+                  2 types named with a ViewModel suffix.
+                  2 of those are @Observable or an ObservableObject.
+  Organisation    Feature-based     from naming
+                  1 feature folder found.
+```
+
+Where the evidence settles nothing, the answer is `Undetermined` rather than
+the likeliest guess.
 
 <details>
 <summary><b>All options</b></summary>
@@ -234,9 +257,8 @@ starting with a digit are caught before anything is written.
 | ✅ | `keel inspect` | done |
 | ✅ | ProjectModel | done |
 | ✅ | Swift source analysis | done |
-| 🔨 | Architecture detection | next |
-
-| ⚪ | `keel document` without AI | |
+| ✅ | Architecture detection | done |
+| 🔨 | `keel document` without AI | next |
 | ⚪ | AI agent detection & provider abstraction | |
 | ⚪ | AI-assisted documentation | |
 | ⚪ | `keel check` and `keel doctor` | |
