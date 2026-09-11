@@ -17,8 +17,8 @@
 ---
 
 > [!NOTE]
-> **Early development.** `keel new` and `keel inspect` both work today.
-> `document`, `check`, `doctor` and `ai` are declared but not implemented
+> **Early development.** `keel new`, `keel inspect` and `keel document` all
+> work today. `check`, `doctor` and `ai` are declared but not implemented
 > yet — see the [roadmap](#-roadmap).
 
 <br>
@@ -118,7 +118,7 @@ flowchart TD
 | | Command | What it does | Status |
 |:--:|---|---|:--:|
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
-| 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ⚪ Planned |
+| 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ⚪ Planned |
@@ -208,6 +208,27 @@ Architecture
 Where the evidence settles nothing, the answer is `Undetermined` rather than
 the likeliest guess.
 
+### Writing it down
+
+```bash
+keel document              # write PROJECT.md into the project
+keel document --stdout     # print it instead
+keel document -o docs/Architecture.md
+```
+
+`PROJECT.md` holds the same facts `inspect` prints — structure, targets,
+dependencies, architecture — as Markdown, with the evidence behind each
+conclusion in a collapsible section. It is built from the same `ProjectModel`,
+so the two cannot disagree about a project.
+
+The output is deterministic: no timestamp, nothing that changes between runs
+unless the project changed. Re-running on an unchanged project produces an
+empty diff, which is what makes it safe to commit and regenerate.
+
+> [!NOTE]
+> Keel replaces its own `PROJECT.md` without asking, and refuses to replace one
+> it did not write. Pass `--force` if you mean it.
+
 <details>
 <summary><b>All options</b></summary>
 
@@ -258,8 +279,8 @@ starting with a digit are caught before anything is written.
 | ✅ | ProjectModel | done |
 | ✅ | Swift source analysis | done |
 | ✅ | Architecture detection | done |
-| 🔨 | `keel document` without AI | next |
-| ⚪ | AI agent detection & provider abstraction | |
+| ✅ | `keel document` without AI | done |
+| 🔨 | AI agent detection & provider abstraction | next |
 | ⚪ | AI-assisted documentation | |
 | ⚪ | `keel check` and `keel doctor` | |
 | ⚪ | `keel add feature` | |

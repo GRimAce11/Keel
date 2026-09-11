@@ -187,15 +187,9 @@ struct Inspect: ParsableCommand {
         console.heading("Declarations")
 
         // Counted by kind, so the shape of the codebase is visible at a glance.
-        let kinds: [(TypeDeclaration.Kind, String)] = [
-            (.structure, "Structs"), (.classType, "Classes"),
-            (.enumeration, "Enums"), (.protocolType, "Protocols"),
-            (.actorType, "Actors"), (.extensionOf, "Extensions"),
-        ]
-        for (kind, label) in kinds {
-            let count = analysis.types(ofKind: kind).count
-            guard count > 0 else { continue }
-            console.detail("\(label.padding(toLength: 18, withPad: " ", startingAt: 0))\(count)")
+        for entry in analysis.declarationCounts() {
+            let label = entry.kind.pluralName.capitalized
+            console.detail("\(label.padding(toLength: 18, withPad: " ", startingAt: 0))\(entry.count)")
         }
 
         console.detail("\("Functions".padding(toLength: 18, withPad: " ", startingAt: 0))\(analysis.functionCount)")
@@ -211,23 +205,18 @@ struct Inspect: ParsableCommand {
     }
 
     /// Counts of the patterns that say how a codebase is built.
+    ///
+    /// The list itself lives on `SourceAnalysis`, so `inspect` and `document`
+    /// cannot end up describing the same project differently.
     private func renderPatterns(_ analysis: SourceAnalysis, console: Console) {
-        let patterns: [(String, Int)] = [
-            ("@Observable", analysis.types(withAttribute: "Observable").count),
-            ("ObservableObject", analysis.types(conformingTo: "ObservableObject").count),
-            ("@MainActor", analysis.types(withAttribute: "MainActor").count),
-            ("@Model", analysis.types(withAttribute: "Model").count),
-            ("SwiftUI View", analysis.types(conformingTo: "View").count),
-            ("ViewModels", analysis.types(namedWithSuffix: "ViewModel").count),
-            ("Repositories", analysis.types(namedWithSuffix: "Repository").count),
-        ].filter { $0.1 > 0 }
-
+        let patterns = analysis.notablePatterns()
         guard !patterns.isEmpty else { return }
 
         console.heading("Patterns")
-        let width = patterns.map(\.0.count).max() ?? 0
-        for (name, count) in patterns {
-            console.detail("\(name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0))  \(count)")
+        let width = patterns.map(\.name.count).max() ?? 0
+        for pattern in patterns {
+            let name = pattern.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
+            console.detail("\(name)  \(pattern.count)")
         }
     }
 

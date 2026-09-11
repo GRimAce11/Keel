@@ -463,3 +463,56 @@ struct GeneratedArchitectureTests {
         #expect(withTests.wiring.evidence == withoutTests.wiring.evidence)
     }
 }
+
+// MARK: - Shared summaries
+
+/// `inspect` and `document` both render these, so they are defined once on
+/// `SourceAnalysis` and tested here rather than in either renderer.
+@Suite("SourceAnalysis summaries")
+struct SourceAnalysisSummaryTests {
+
+    private func analyse(_ source: String) -> SourceAnalysis {
+        SourceAnalysis(files: [SwiftSourceAnalyzer().analyze(source: source, path: "A.swift")])
+    }
+
+    @Test(
+        "Every kind has a plural that is a real word",
+        arguments: [
+            (TypeDeclaration.Kind.structure, "structs"),
+            (.classType, "classes"),
+            (.enumeration, "enums"),
+            (.actorType, "actors"),
+            (.protocolType, "protocols"),
+            (.extensionOf, "extensions"),
+        ]
+    )
+    func pluralises(kind: TypeDeclaration.Kind, expected: String) {
+        // Appending "s" to displayName would give "classs".
+        #expect(kind.pluralName == expected)
+    }
+
+    @Test("Declaration counts skip kinds the project does not use")
+    func countsOnlyWhatIsThere() {
+        let counts = analyse("struct A {}\nstruct B {}\nenum C {}").declarationCounts()
+
+        #expect(counts.map(\.kind) == [.structure, .enumeration])
+        #expect(counts.first?.count == 2)
+    }
+
+    @Test("Patterns list only what the project actually uses")
+    func reportsOnlyPresentPatterns() {
+        let patterns = analyse("""
+            import SwiftUI
+            @Observable final class HomeViewModel {}
+            struct HomeView: View { var body: some View { EmptyView() } }
+            """).notablePatterns()
+
+        let names = patterns.map(\.name)
+        #expect(names.contains("@Observable"))
+        #expect(names.contains("SwiftUI View"))
+        #expect(names.contains("ViewModels"))
+        // Nothing in that source is a repository or an ObservableObject.
+        #expect(!names.contains("Repositories"))
+        #expect(!names.contains("ObservableObject"))
+    }
+}

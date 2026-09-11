@@ -17,20 +17,6 @@ enum Unimplemented {
     }
 }
 
-struct Document: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "document",
-        abstract: "Generate PROJECT.md from an existing iOS project."
-    )
-
-    func run() throws {
-        try Unimplemented.report(
-            "document",
-            "It will analyse the project in the working directory and write PROJECT.md."
-        )
-    }
-}
-
 struct Check: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "check",

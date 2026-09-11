@@ -48,6 +48,19 @@ public struct TypeDeclaration: Codable, Sendable, Equatable {
             case .extensionOf: return "extension"
             }
         }
+
+        /// The plural a report uses. Spelled out because naive pluralisation
+        /// turns "class" into "classs".
+        public var pluralName: String {
+            switch self {
+            case .structure: return "structs"
+            case .classType: return "classes"
+            case .enumeration: return "enums"
+            case .actorType: return "actors"
+            case .protocolType: return "protocols"
+            case .extensionOf: return "extensions"
+            }
+        }
     }
 
     public func hasAttribute(_ name: String) -> Bool {
@@ -139,5 +152,36 @@ public struct SourceAnalysis: Codable, Sendable, Equatable {
     /// so callers decide how much weight to give it.
     public func types(namedWithSuffix suffix: String) -> [TypeDeclaration] {
         declaredTypes.filter { $0.name.hasSuffix(suffix) }
+    }
+
+    // MARK: - Summaries
+
+    /// Declaration counts by kind, in reading order, omitting kinds with none.
+    public func declarationCounts() -> [(kind: TypeDeclaration.Kind, count: Int)] {
+        let order: [TypeDeclaration.Kind] = [
+            .structure, .classType, .enumeration, .protocolType, .actorType, .extensionOf,
+        ]
+        return order
+            .map { (kind: $0, count: types(ofKind: $0).count) }
+            .filter { $0.count > 0 }
+    }
+
+    /// The patterns worth naming when describing a codebase, with how many
+    /// types use each. Only patterns actually present are returned.
+    ///
+    /// Which patterns are worth naming is a presentation choice rather than a
+    /// fact, so it lives here in one place: `inspect` and `document` describe
+    /// the same project from the same list, and cannot drift into describing
+    /// it differently.
+    public func notablePatterns() -> [(name: String, count: Int)] {
+        [
+            ("@Observable", types(withAttribute: "Observable").count),
+            ("ObservableObject", types(conformingTo: "ObservableObject").count),
+            ("@MainActor", types(withAttribute: "MainActor").count),
+            ("@Model", types(withAttribute: "Model").count),
+            ("SwiftUI View", types(conformingTo: "View").count),
+            ("ViewModels", types(namedWithSuffix: "ViewModel").count),
+            ("Repositories", types(namedWithSuffix: "Repository").count),
+        ].filter { $0.count > 0 }
     }
 }
