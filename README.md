@@ -17,9 +17,9 @@
 ---
 
 > [!NOTE]
-> **Early development.** `keel new`, `keel inspect` and `keel document` all
-> work today. `check`, `doctor` and `ai` are declared but not implemented
-> yet — see the [roadmap](#-roadmap).
+> **Early development.** `keel new`, `keel inspect`, `keel document` and
+> `keel ai` all work today. `check` and `doctor` are declared but not
+> implemented yet — see the [roadmap](#-roadmap).
 
 <br>
 
@@ -122,7 +122,7 @@ flowchart TD
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ⚪ Planned |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ⚪ Planned |
-| 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ⚪ Planned |
+| 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
 
 <br>
 
@@ -229,6 +229,39 @@ empty diff, which is what makes it safe to commit and regenerate.
 > Keel replaces its own `PROJECT.md` without asking, and refuses to replace one
 > it did not write. Pass `--force` if you mean it.
 
+### Choosing an AI agent
+
+```bash
+keel ai                 # what is installed, and what is selected
+keel ai use claude      # permit one — this does not run it
+keel ai verify          # run it once, to prove Keel can reach it
+keel ai forget          # back to Keel alone
+```
+
+Detection reads `PATH` and nothing else. It does not shell out to `which`, and
+it does not run the agent — not even for a version string. Keel is allowed to
+notice an agent exists; running one is a separate act.
+
+`keel ai verify` is the only command in Keel that invokes an agent. It sends one
+fixed, trivial prompt, prints the command before running it, and reads no
+project and sends no code.
+
+Your choice lives in `~/.config/keel/ai.json` as plain JSON, including the exact
+command line:
+
+```json
+{ "agentID": "claude", "command": "claude", "arguments": ["-p", "{prompt}"] }
+```
+
+That file is the single source for what Keel *says* it will run and what it
+*does* run, so the two cannot disagree. The shipped invocations are Keel's best
+current understanding of each CLI, not a promise — when an agent changes its
+flags, edit this file rather than waiting for a Keel release.
+
+> [!IMPORTANT]
+> An installed agent is not a selected one, and a selected one still only runs
+> when a command you typed asks it to. No core command uses an agent at all.
+
 <details>
 <summary><b>All options</b></summary>
 
@@ -280,8 +313,8 @@ starting with a digit are caught before anything is written.
 | ✅ | Swift source analysis | done |
 | ✅ | Architecture detection | done |
 | ✅ | `keel document` without AI | done |
-| 🔨 | AI agent detection & provider abstraction | next |
-| ⚪ | AI-assisted documentation | |
+| ✅ | AI agent detection & provider abstraction | done |
+| 🔨 | AI-assisted documentation | next |
 | ⚪ | `keel check` and `keel doctor` | |
 | ⚪ | `keel add feature` | |
 | ⚪ | Homebrew distribution | |

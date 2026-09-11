@@ -44,17 +44,3 @@ struct Doctor: ParsableCommand {
         )
     }
 }
-
-struct AI: ParsableCommand {
-    static let configuration = CommandConfiguration(
-        commandName: "ai",
-        abstract: "Inspect and choose which local AI agent Keel may use."
-    )
-
-    func run() throws {
-        try Unimplemented.report(
-            "ai",
-            "It will list locally installed agents. Keel never invokes one unless you select it."
-        )
-    }
-}

@@ -120,13 +120,29 @@ struct CLITests {
 
     @Test(
         "Unimplemented commands exit non-zero and say so",
-        arguments: ["check", "doctor", "ai"]
+        arguments: ["check", "doctor"]
     )
     func unimplementedCommandsReportClearly(command: String) throws {
         let result = try CLIRunner.run([command])
         // Exiting zero would let a CI pipeline "pass" a step that did nothing.
         #expect(result.succeeded == false)
         #expect(result.combinedOutput.contains("not implemented"))
+    }
+
+    @Test("ai reports what is installed without running any of it")
+    func aiListsWithoutInvoking() throws {
+        let result = try CLIRunner.run(["ai"])
+        #expect(result.succeeded)
+        #expect(result.combinedOutput.contains("Selection"))
+        // It is implemented now, so it must not claim otherwise.
+        #expect(!result.combinedOutput.contains("not implemented"))
+    }
+
+    @Test("ai rejects an agent it does not recognise")
+    func aiRejectsUnknownAgent() throws {
+        let result = try CLIRunner.run(["ai", "use", "frobnicate"])
+        #expect(result.succeeded == false)
+        #expect(result.combinedOutput.contains("does not recognise"))
     }
 
     @Test("document explains itself when there is no project to read")
