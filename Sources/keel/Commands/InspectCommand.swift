@@ -19,6 +19,9 @@ struct Inspect: ParsableCommand {
     @Flag(name: .customLong("json"), help: "Emit JSON instead of a report.")
     var json = false
 
+    @Flag(name: .customLong("dependencies"), help: "Report what each part of the project imports.")
+    var dependencies = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -38,7 +41,69 @@ struct Inspect: ParsableCommand {
             return
         }
 
+        if dependencies {
+            renderDependencies(inspection, console: console)
+            return
+        }
+
         render(inspection, console: console)
+    }
+
+    // MARK: - Dependencies
+
+    /// What each feature and module reaches for.
+    ///
+    /// The limitation is printed rather than left to be discovered: imports
+    /// only cross module boundaries, so in a single-target app one feature
+    /// using another's types produces no import and appears here as nothing at
+    /// all. Silence in this report means "no import", never "no coupling".
+    private func renderDependencies(_ inspection: ProjectModel, console: Console) {
+        let graph = inspection.importGraph
+        console.heading(inspection.name)
+
+        let dependencies = graph.dependencies()
+        guard !dependencies.isEmpty else {
+            console.detail("Nothing imports anything Keel could place.")
+            return
+        }
+
+        for dependency in dependencies {
+            console.heading(dependency.owner)
+            let width = dependency.imports.map(\.module.count).max() ?? 0
+            for imported in dependency.imports {
+                let name = imported.module.padding(
+                    toLength: max(width, 1), withPad: " ", startingAt: 0
+                )
+                let files = imported.evidence.count
+                console.detail(
+                    "→ \(name)  \(imported.kind.displayName)"
+                    + "  \(files) file\(files == 1 ? "" : "s")"
+                )
+            }
+        }
+
+        renderCycles(graph, console: console)
+
+        if graph.isSingleModule {
+            console.heading("Scope")
+            console.detail("Every target here compiles as one module, so features cannot")
+            console.detail("import each other. Absence of a line below a feature means no")
+            console.detail("import — not that nothing depends on it.")
+        }
+    }
+
+    private func renderCycles(_ graph: ImportGraph, console: Console) {
+        let cycles = graph.cycles()
+        guard !cycles.isEmpty else { return }
+
+        console.heading("Import cycles (\(cycles.count))")
+        for cycle in cycles {
+            console.detail(cycle.joined(separator: " → "))
+        }
+        // Reported, not judged: this phase establishes that a cycle exists.
+        console.detail("")
+        console.detail("Reported, not failed. A cycle between modules is usually a")
+        console.detail("problem and occasionally deliberate.")
     }
 
     // MARK: - Report

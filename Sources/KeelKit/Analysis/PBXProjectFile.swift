@@ -171,6 +171,23 @@ struct PBXProjectFile {
 
     // MARK: - Packages
 
+    /// Product names the project links from its packages.
+    ///
+    /// A package's name and the products it vends are different things —
+    /// `socket.io-client-swift` vends `SocketIO` — so matching an import
+    /// against the package name misses most of them. The project file lists the
+    /// products outright, which turns a guess into a fact.
+    func packageProductNames() -> Set<String> {
+        Set(
+            objects.values.compactMap { object in
+                guard (object["isa"] as? String) == "XCSwiftPackageProductDependency" else {
+                    return nil
+                }
+                return object["productName"] as? String
+            }
+        )
+    }
+
     func packages() -> [PackageDependency] {
         guard let ids = rootProject?["packageReferences"] as? [String] else { return [] }
 

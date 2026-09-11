@@ -157,7 +157,7 @@ struct SwiftSourceAnalyzerTests {
             import SwiftUI
             import os.log
             """)
-        #expect(analysis.imports == ["Foundation", "SwiftUI", "os.log"])
+        #expect(analysis.importedModules == ["Foundation", "SwiftUI", "os.log"])
     }
 
     // MARK: - Robustness

@@ -28,6 +28,8 @@ public struct ProjectModel: Codable, Sendable, Equatable {
     public let source: SourceSummary
     /// What parsing found. Empty only when the project has no Swift at all.
     public let analysis: SourceAnalysis
+    /// What the project's own files reach for, and where they said so.
+    public let importGraph: ImportGraph
     /// What those facts add up to, with the evidence behind each conclusion.
     public let architecture: Architecture
 

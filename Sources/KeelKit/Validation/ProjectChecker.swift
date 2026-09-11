@@ -54,7 +54,7 @@ public struct ProjectChecker {
         var diagnostics: [Diagnostic] = []
 
         for file in analysis.files {
-            let imports = Set(file.imports)
+            let imports = Set(file.importedModules)
             for requirement in Self.requiredImports {
                 let users = file.types.filter { $0.hasAttribute(requirement.attribute) }
                 guard !users.isEmpty, !imports.contains(requirement.module) else { continue }
@@ -149,7 +149,7 @@ public struct ProjectChecker {
             let views = file.types.filter { $0.conforms(to: "View") }
             guard !views.isEmpty else { return [] }
 
-            return Set(file.imports)
+            return Set(file.importedModules)
                 .intersection(Self.infrastructureModules)
                 .sorted()
                 .map { module in

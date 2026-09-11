@@ -60,6 +60,7 @@ public struct ProjectScanner {
 
         var projects: [XcodeProject] = []
         var packages: [PackageDependency] = []
+        var packageProducts: Set<String> = []
         var configurations: [BuildConfiguration] = []
 
         // A project that cannot be read is skipped rather than fatal, so long as
@@ -88,6 +89,7 @@ public struct ProjectScanner {
                 )
             )
             packages.append(contentsOf: file.packages())
+            packageProducts.formUnion(file.packageProductNames())
             configurations += file.configurationNames().map {
                 BuildConfiguration(name: $0, projectName: path.deletingPathExtension().lastPathComponent)
             }
@@ -133,6 +135,20 @@ public struct ProjectScanner {
             features: features,
             source: summary,
             analysis: analysis,
+            importGraph: ImportGraphBuilder(
+                model: .init(
+                    rootPath: projectRoot.path,
+                    targets: projects.flatMap(\.targets),
+                    modules: modules,
+                    features: features,
+                    packages: uniquePackages,
+                    packageProducts: packageProducts,
+                    // Tests included here: "which files import XCTest" is a
+                    // real question, and the graph records ownership so a
+                    // caller can exclude them.
+                    analysis: analysis
+                )
+            ).build(),
             architecture: ArchitectureDetector(
                 modules: modules,
                 features: features,

@@ -1,13 +1,31 @@
 import Foundation
 
+/// One `import` statement, with where it was written.
+///
+/// The line is carried because an import is evidence: "this feature depends on
+/// SwiftData" is only checkable if it says which file and which line said so.
+public struct ImportDeclaration: Codable, Sendable, Equatable {
+    public let module: String
+    public let line: Int
+
+    public init(module: String, line: Int) {
+        self.module = module
+        self.line = line
+    }
+}
+
 /// What parsing found in one Swift file.
 public struct FileAnalysis: Codable, Sendable, Equatable {
     public let path: String
-    public let imports: [String]
+    public let imports: [ImportDeclaration]
     public let types: [TypeDeclaration]
     public let functionCount: Int
     public let asyncFunctionCount: Int
     public let throwingFunctionCount: Int
+
+    /// Module names alone, for the many callers that do not care where the
+    /// import was written.
+    public var importedModules: [String] { imports.map(\.module) }
 }
 
 // MARK: - Declarations
@@ -125,7 +143,7 @@ public struct SourceAnalysis: Codable, Sendable, Equatable {
         var counts: [String: Int] = [:]
         for file in files {
             // A file importing the same module twice still counts once.
-            for module in Set(file.imports) {
+            for module in Set(file.importedModules) {
                 counts[module, default: 0] += 1
             }
         }

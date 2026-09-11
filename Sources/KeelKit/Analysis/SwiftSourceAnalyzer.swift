@@ -68,7 +68,7 @@ private final class DeclarationVisitor: SyntaxVisitor {
     let path: String
     let converter: SourceLocationConverter
 
-    private(set) var imports: [String] = []
+    private(set) var imports: [ImportDeclaration] = []
     private(set) var types: [TypeDeclaration] = []
     private(set) var functionCount = 0
     private(set) var asyncFunctionCount = 0
@@ -90,7 +90,10 @@ private final class DeclarationVisitor: SyntaxVisitor {
 
     override func visit(_ node: ImportDeclSyntax) -> SyntaxVisitorContinueKind {
         let name = node.path.map(\.name.text).joined(separator: ".")
-        if !name.isEmpty { imports.append(name) }
+        guard !name.isEmpty else { return .skipChildren }
+
+        let line = converter.location(for: node.positionAfterSkippingLeadingTrivia).line
+        imports.append(ImportDeclaration(module: name, line: line))
         return .skipChildren
     }
 

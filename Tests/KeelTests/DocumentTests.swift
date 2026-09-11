@@ -139,6 +139,7 @@ struct ProjectDocumentTests {
                 usesSwiftTesting: false, usesXCTest: false
             ),
             analysis: SourceAnalysis(files: []),
+            importGraph: ImportGraph(edges: [], isSingleModule: true),
             architecture: ArchitectureDetector(
                 modules: [], features: [], analysis: SourceAnalysis(files: [])
             ).detect()
@@ -170,6 +171,7 @@ struct ProjectDocumentTests {
                 usesSwiftTesting: false, usesXCTest: false
             ),
             analysis: SourceAnalysis(files: []),
+            importGraph: ImportGraph(edges: [], isSingleModule: true),
             architecture: ArchitectureDetector(
                 modules: [], features: [], analysis: SourceAnalysis(files: [])
             ).detect()
@@ -692,6 +694,7 @@ struct DocumentFingerprintTests {
                 usesSwiftTesting: false, usesXCTest: false
             ),
             analysis: SourceAnalysis(files: []),
+            importGraph: ImportGraph(edges: [], isSingleModule: true),
             architecture: Architecture(
                 presentation: Finding(value: value == "MVVM" ? .mvvm : .mvc,
                                       support: .observed, evidence: []),

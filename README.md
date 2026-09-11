@@ -277,6 +277,38 @@ Architecture
 Where the evidence settles nothing, the answer is `Undetermined` rather than
 the likeliest guess.
 
+### What depends on what
+
+```bash
+keel inspect --dependencies
+```
+
+```text
+Articles
+  → Foundation  system   6 files
+  → SwiftUI     system   2 files
+
+ProbeTests
+  → Probe       project  6 files
+  → Testing     system   5 files
+```
+
+Every edge knows the file and line that declared it, so a dependency is
+checkable rather than asserted. Packages are matched against the product names
+the project actually links — `socket.io-client-swift` vends `SocketIO`, and
+matching the package name would miss it. Anything Keel cannot place is
+`unknown` rather than assumed to be Apple's, because an optimistic default
+would quietly relabel every in-house framework as a system one.
+
+Import cycles are reported and not failed. A cycle between modules is usually a
+problem and occasionally deliberate.
+
+> [!NOTE]
+> Imports only cross *module* boundaries. In a single-target app every feature
+> compiles into the same module, so one feature using another's types produces
+> no import at all. Keel says so rather than letting silence read as "nothing
+> depends on this".
+
 ### Writing it down
 
 ```bash
