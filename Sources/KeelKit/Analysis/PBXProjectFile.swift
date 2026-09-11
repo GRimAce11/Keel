@@ -16,7 +16,11 @@ struct PBXProjectFile {
         var description: String {
             switch self {
             case .unreadable(let path):
-                return "Could not read \(path)."
+                return """
+                    Could not read \(path) — there is no project.pbxproj inside it. \
+                    That usually means a leftover or half-written project directory \
+                    rather than a real one.
+                    """
             case .malformed(let path):
                 return "\(path) is not a readable Xcode project file."
             case .noRootObject(let path):

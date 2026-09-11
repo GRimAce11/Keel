@@ -347,3 +347,59 @@ struct MonorepoTests {
         }
     }
 }
+
+// MARK: - Broken project files
+
+@Suite("Unreadable projects")
+struct UnreadableProjectTests {
+
+    private let console = Console(useColor: false)
+
+    @Test("A broken .xcodeproj beside a real one does not stop the real one being read")
+    func skipsUnreadableProjects() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-broken-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let outcome = try ProjectGenerator(
+            configuration: ProjectConfiguration(
+                name: try ProjectName("Probe"),
+                bundleIdentifierPrefix: "com.acme",
+                components: []
+            ),
+            console: console
+        ).generate(in: root, initializeGit: false)
+
+        // A leftover: the directory exists, the project file inside does not.
+        try FileManager.default.createDirectory(
+            at: outcome.projectDirectory.appendingPathComponent("Leftover.xcodeproj"),
+            withIntermediateDirectories: true
+        )
+
+        // A tool whose promise is working on broken projects cannot fall over
+        // at the first broken thing it finds.
+        let model = try ProjectScanner(root: outcome.projectDirectory).scan()
+        #expect(model.name == "Probe")
+        #expect(model.projects.map(\.name) == ["Probe"])
+    }
+
+    @Test("When nothing can be read, the reason says what is actually wrong")
+    func explainsWhenNothingIsReadable() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-ghost-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("Ghost.xcodeproj"), withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        do {
+            _ = try ProjectScanner(root: root).scan()
+            Issue.record("expected a scan failure")
+        } catch let error as ProjectScanner.ScanError {
+            // "Could not read it" is not a diagnosis. Naming the missing file is.
+            #expect(error.description.contains("project.pbxproj"))
+            #expect(error.description.contains("Ghost.xcodeproj"))
+        }
+    }
+}

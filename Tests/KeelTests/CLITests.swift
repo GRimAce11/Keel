@@ -143,15 +143,29 @@ struct CLITests {
         #expect(!result.combinedOutput.contains("not implemented"))
     }
 
+    /// An empty directory of our own.
+    ///
+    /// Passing NSTemporaryDirectory() itself made these tests depend on
+    /// whatever else happened to be in /tmp — a stray .xcodeproj left by
+    /// anything at all changed the answer.
+    private func emptyDirectory() throws -> String {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-empty-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url.path
+    }
+
     @Test("check and doctor read a real project")
     func checkAndDoctorRun() throws {
-        let check = try CLIRunner.run(["check", NSTemporaryDirectory()])
+        let empty = try emptyDirectory()
+        defer { try? FileManager.default.removeItem(atPath: empty) }
+        let check = try CLIRunner.run(["check", empty])
         #expect(check.succeeded == false)
         #expect(check.combinedOutput.contains("No .xcodeproj"))
 
         // doctor works with no project at all, because "is this machine ready"
         // is a fair question to ask anywhere.
-        let doctor = try CLIRunner.run(["doctor", NSTemporaryDirectory()])
+        let doctor = try CLIRunner.run(["doctor", empty])
         #expect(doctor.combinedOutput.contains("Toolchain"))
     }
 
@@ -173,7 +187,9 @@ struct CLITests {
 
     @Test("document explains itself when there is no project to read")
     func documentReportsMissingProject() throws {
-        let result = try CLIRunner.run(["document", NSTemporaryDirectory()])
+        let empty = try emptyDirectory()
+        defer { try? FileManager.default.removeItem(atPath: empty) }
+        let result = try CLIRunner.run(["document", empty])
         #expect(result.succeeded == false)
         #expect(result.combinedOutput.contains("No .xcodeproj"))
         // It is implemented now, so it must not claim otherwise.
@@ -183,7 +199,9 @@ struct CLITests {
     @Test("inspect explains itself when there is no project to read")
     func inspectReportsMissingProject() throws {
         // Run somewhere that definitely holds no Xcode project.
-        let result = try CLIRunner.run(["inspect", NSTemporaryDirectory()])
+        let empty = try emptyDirectory()
+        defer { try? FileManager.default.removeItem(atPath: empty) }
+        let result = try CLIRunner.run(["inspect", empty])
         #expect(result.succeeded == false)
         #expect(result.combinedOutput.contains("No .xcodeproj"))
         // It is implemented now, so it must not claim otherwise.

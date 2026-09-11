@@ -62,12 +62,20 @@ public struct ProjectScanner {
         var packages: [PackageDependency] = []
         var configurations: [BuildConfiguration] = []
 
+        // A project that cannot be read is skipped rather than fatal, so long as
+        // something else could be. A leftover or half-written .xcodeproj sitting
+        // beside a real one should not stop Keel reading the real one — and a
+        // tool whose whole promise is working on broken projects cannot fall
+        // over at the first broken thing it finds.
+        var unreadable: [String] = []
+
         for path in projectPaths.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let file: PBXProjectFile
             do {
                 file = try PBXProjectFile(path: path)
             } catch let error as PBXProjectFile.ParseError {
-                throw ScanError.unreadableProject(error.description)
+                unreadable.append(error.description)
+                continue
             }
 
             projects.append(
@@ -89,6 +97,11 @@ public struct ProjectScanner {
         // workspace; report it once.
         var seen = Set<String>()
         let uniquePackages = packages.filter { seen.insert($0.url ?? $0.name).inserted }
+
+        // Only when nothing at all could be read is there nothing to report.
+        if projects.isEmpty, !unreadable.isEmpty {
+            throw ScanError.unreadableProject(unreadable.joined(separator: "\n"))
+        }
 
         let name = workspaces.first?.deletingPathExtension().lastPathComponent
             ?? projects.first?.name
