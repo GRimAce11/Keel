@@ -45,6 +45,24 @@ public struct ProjectModel: Codable, Sendable, Equatable {
         allTargets.filter { $0.productType == .application }
     }
 
+    /// Target names whose directory could hold the app's own source, app
+    /// targets first.
+    ///
+    /// Test bundles are excluded: a test target's folder is definitionally not
+    /// the app's source, and anything looking for the source directory takes
+    /// the first name that matches — so including them made the answer depend
+    /// on the order Xcode happened to write the targets in.
+    public var sourceTargetNames: [String] {
+        Self.sourceTargetNames(from: allTargets)
+    }
+
+    public static func sourceTargetNames(from targets: [Target]) -> [String] {
+        targets
+            .filter { !$0.productType.isTestBundle }
+            .sorted { lhs, _ in lhs.productType == .application }
+            .map(\.name)
+    }
+
     /// The platforms the targets build for, derived from their SDK.
     public var platforms: [String] {
         let names = allTargets.compactMap(\.platform).map(Platform.displayName(forSDK:))

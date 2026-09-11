@@ -139,8 +139,15 @@ struct FeatureGeneratorTests {
             let generator = FeatureGenerator(model: model, console: console)
             _ = try generator.generate(named: "Profile")
 
-            #expect(throws: FeatureGenerator.GenerationError.self) {
+            // Asserting the error *type* would let a name error satisfy this
+            // test, which is the failure it exists to catch.
+            #expect {
                 try generator.generate(named: "Profile")
+            } throws: { error in
+                guard case FeatureGenerator.GenerationError.alreadyExists = error else {
+                    return false
+                }
+                return true
             }
         }
     }
@@ -153,8 +160,13 @@ struct FeatureGeneratorTests {
         try withProject { _, model in
             // The name becomes a type in five files; catching it here beats
             // five compile errors.
-            #expect(throws: FeatureGenerator.GenerationError.self) {
+            #expect {
                 try FeatureGenerator(model: model, console: console).generate(named: name)
+            } throws: { error in
+                guard case FeatureGenerator.GenerationError.invalidName = error else {
+                    return false
+                }
+                return true
             }
         }
     }
@@ -165,6 +177,29 @@ struct FeatureGeneratorTests {
             let outcome = try FeatureGenerator(model: model, console: console)
                 .generate(named: "profile")
             #expect(outcome.name == "Profile")
+        }
+    }
+
+    @Test("A project whose layout Keel cannot read is refused, not guessed at")
+    func refusesWhenThereIsNoSourceDirectory() throws {
+        try withProject { root, model in
+            // Rename the source directory so nothing matches a target name.
+            // Keel has no idea where features belong now, and inventing a
+            // location would scatter files into a project at random.
+            try FileManager.default.moveItem(
+                at: root.appendingPathComponent("Probe"),
+                to: root.appendingPathComponent("SomewhereElse")
+            )
+
+            let rescanned = try ProjectScanner(root: root).scan()
+            #expect {
+                try FeatureGenerator(model: rescanned, console: console).generate(named: "Profile")
+            } throws: { error in
+                guard case FeatureGenerator.GenerationError.noSourceDirectory = error else {
+                    return false
+                }
+                return true
+            }
         }
     }
 

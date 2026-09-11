@@ -12,7 +12,9 @@ import SwiftSyntax
 /// Parsing is source-only — no compiler, no build, no index. That keeps
 /// analysis working on a project that does not currently compile, and keeps it
 /// fast enough to run over a few hundred files on every invocation.
-public struct SwiftSourceAnalyzer {
+/// Stateless, and marked `Sendable` so the parallel parse in `ProjectScanner`
+/// can share one instance across threads without copying it per file.
+public struct SwiftSourceAnalyzer: Sendable {
 
     public init() {}
 

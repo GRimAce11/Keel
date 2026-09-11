@@ -403,3 +403,52 @@ struct UnreadableProjectTests {
         }
     }
 }
+
+// MARK: - Which target's folder is the source
+
+@Suite("Source target selection")
+struct SourceTargetTests {
+
+    private func target(_ name: String, _ type: ProductType) -> Target {
+        Target(
+            name: name, productType: type, bundleIdentifier: nil,
+            deploymentTarget: nil, swiftVersion: nil, platform: nil,
+            strictConcurrency: nil
+        )
+    }
+
+    @Test("Test bundles are never candidates for the app's source directory")
+    func excludesTestBundles() {
+        // A test target's folder holds tests. Treating it as the app's source
+        // sends generated features into the test target.
+        let names = ProjectModel.sourceTargetNames(from: [
+            target("ProbeTests", .unitTestBundle),
+            target("Probe", .application),
+            target("ProbeUITests", .uiTestBundle),
+        ])
+
+        #expect(names == ["Probe"])
+    }
+
+    @Test("The app target comes first, whatever order Xcode wrote them in")
+    func prefersTheAppTarget() {
+        // Whoever looks for the source directory takes the first name that
+        // matches, so this order is the answer rather than a nicety.
+        let names = ProjectModel.sourceTargetNames(from: [
+            target("ProbeWidgets", .appExtension),
+            target("Probe", .application),
+        ])
+
+        #expect(names.first == "Probe")
+    }
+
+    @Test("A project with no app target still offers its other targets")
+    func keepsNonAppTargets() {
+        let names = ProjectModel.sourceTargetNames(from: [
+            target("ProbeKit", .framework),
+            target("ProbeKitTests", .unitTestBundle),
+        ])
+
+        #expect(names == ["ProbeKit"])
+    }
+}

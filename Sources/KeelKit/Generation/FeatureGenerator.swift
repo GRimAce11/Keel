@@ -123,7 +123,7 @@ public struct FeatureGenerator {
 
         let layout = LayoutScanner(
             root: URL(fileURLWithPath: model.rootPath),
-            targetNames: model.allTargets.map(\.name)
+            targetNames: model.sourceTargetNames
         )
         guard let source = layout.sourceDirectory() else { return nil }
 

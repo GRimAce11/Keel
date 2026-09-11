@@ -113,7 +113,7 @@ public struct ProjectScanner {
         // groups the project file says nothing about it at all.
         let layout = LayoutScanner(
             root: projectRoot,
-            targetNames: projects.flatMap(\.targets).map(\.name)
+            targetNames: ProjectModel.sourceTargetNames(from: projects.flatMap(\.targets))
         )
 
         let modules = layout.modules()
@@ -156,10 +156,21 @@ public struct ProjectScanner {
 
         var results = [FileAnalysis?](repeating: nil, count: files.count)
         results.withUnsafeMutableBufferPointer { buffer in
+            guard let baseAddress = buffer.baseAddress else { return }
+
+            // The compiler cannot see that these writes are disjoint, and it is
+            // right not to assume it. The guarantee is the loop's: iteration
+            // `index` writes slot `index` and nothing else, every slot is
+            // written at most once, and nothing reads until concurrentPerform
+            // has returned.
+            nonisolated(unsafe) let base = baseAddress
+
             DispatchQueue.concurrentPerform(iterations: files.count) { index in
                 // Each iteration writes to its own slot, so no two threads
                 // touch the same memory.
-                buffer[index] = analyzer.analyze(fileAt: files[index], relativeTo: root)
+                (base + index).pointee = analyzer.analyze(
+                    fileAt: files[index], relativeTo: root
+                )
             }
         }
 
