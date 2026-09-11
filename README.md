@@ -151,6 +151,34 @@ never written.
 
 <br>
 
+## 🔒 Privacy
+
+Keel reads your project and writes files. It sends nothing anywhere, with one
+exception you have to ask for twice.
+
+| | |
+|---|---|
+| **Network access** | None, ever, except an agent you selected running under `--ai` |
+| **Telemetry** | None |
+| **Accounts or keys** | None. Keel has no account and reads no API key |
+| **Core commands** | `new`, `inspect`, `document`, `check`, `doctor`, `add` are fully offline |
+
+When you do ask for `--ai`, what leaves the machine is **the analysis, not your
+code**: the same derived facts `PROJECT.md` already prints — counts,
+conformances, folder and type names, the evidence behind each verdict. There is
+a test asserting that a secret in your source cannot reach the prompt, because
+Keel records that a type exists, never what a string literal contains.
+
+`keel document --show-prompt` prints the whole thing without sending it, so you
+never have to take that on trust.
+
+> [!IMPORTANT]
+> Keel detects installed agents by reading `PATH`. It does not run them — not
+> even for a version string. Detection, selection and invocation are three
+> separate acts, and `keel document --no-ai` overrides all of them.
+
+<br>
+
 ## 🚀 Install
 
 ```bash
