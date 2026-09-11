@@ -26,6 +26,12 @@ struct Document: ParsableCommand {
     @Flag(name: .shortAndLong, help: "Overwrite a file Keel did not write.")
     var force = false
 
+    @Flag(name: .customLong("ai"), help: "Add an overview written by the agent you selected.")
+    var useAI = false
+
+    @Flag(name: .customLong("show-prompt"), help: "Print what --ai would send, and send nothing.")
+    var showPrompt = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -38,7 +44,15 @@ struct Document: ParsableCommand {
             throw ExitCode.failure
         }
 
-        let markdown = ProjectDocument(model: model).markdown()
+        if showPrompt {
+            print(DocumentationPrompt(model: model).text())
+            return
+        }
+
+        let markdown = ProjectDocument(
+            model: model,
+            overview: useAI ? try overview(for: model, console: console) : nil
+        ).markdown()
 
         if toStandardOutput {
             print(markdown, terminator: "")
@@ -59,6 +73,48 @@ struct Document: ParsableCommand {
 
         console.success("Wrote \(displayPath(of: destination, from: model))")
         console.detail(model.architecture.summary)
+    }
+
+    // MARK: - Interpretation
+
+    /// Asks the selected agent to describe the project, and treats anything it
+    /// cannot do as a missing paragraph rather than a failed command.
+    ///
+    /// The document is the thing being produced. Losing it because a network
+    /// call failed would punish someone for asking for a bonus, so an agent
+    /// that errors costs the overview and nothing else.
+    private func overview(
+        for model: ProjectModel,
+        console: Console
+    ) throws -> ProjectDocument.Overview? {
+        let provider: CommandLineAgent
+        do {
+            provider = try CommandLineAgent.resolve()
+        } catch let error as AIError {
+            // No agent selected is a mistake worth stopping for: the user asked
+            // for something Keel cannot do, and writing the plain document
+            // instead would quietly ignore the flag.
+            console.error(error.description)
+            throw ExitCode.failure
+        }
+
+        let name = Agent.known(id: provider.selection.agentID)?.name
+            ?? provider.selection.agentID
+
+        console.step("Asking \(name) for an overview")
+        console.detail("Runs    \(provider.invocation)")
+        // Worth stating plainly: this is the one command that sends anything
+        // anywhere, and what it sends is the analysis, not the code.
+        console.detail("Sends   the facts in this document — no source code")
+
+        do {
+            let prose = try provider.complete(prompt: DocumentationPrompt(model: model).text())
+            return ProjectDocument.Overview(prose: prose, agentName: name)
+        } catch let error as AIError {
+            console.warn("No overview: \(error.description)")
+            console.detail("The rest of the document is unaffected.")
+            return nil
+        }
     }
 
     // MARK: - Overwriting

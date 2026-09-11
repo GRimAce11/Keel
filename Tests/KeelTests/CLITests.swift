@@ -49,10 +49,23 @@ struct CLIRunner {
     }
 
     @discardableResult
-    static func run(_ arguments: [String]) throws -> Result {
+    /// - Parameter environment: entries overlaid on the inherited environment.
+    ///   Tests that touch the AI layer must point `XDG_CONFIG_HOME` somewhere
+    ///   disposable — reading the real config could select, and then run, an
+    ///   agent belonging to whoever is running the suite.
+    static func run(
+        _ arguments: [String],
+        environment: [String: String] = [:]
+    ) throws -> Result {
         let process = Process()
         process.executableURL = executable
         process.arguments = arguments
+
+        if !environment.isEmpty {
+            var merged = ProcessInfo.processInfo.environment
+            merged.merge(environment) { _, new in new }
+            process.environment = merged
+        }
 
         let outPipe = Pipe()
         let errPipe = Pipe()

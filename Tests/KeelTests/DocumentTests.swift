@@ -267,3 +267,192 @@ struct DocumentCommandTests {
         }
     }
 }
+
+// MARK: - Interpretation
+
+/// The AI layer may interpret facts the deterministic core established. These
+/// tests are mostly about what it is not allowed to do.
+@Suite("AI-assisted documentation")
+struct AIDocumentationTests {
+
+    private let console = Console(useColor: false)
+
+    private func model(
+        components: Set<Component> = Set(Component.allCases)
+    ) throws -> ProjectModel {
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-aidoc-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let configuration = ProjectConfiguration(
+            name: try ProjectName("Probe"),
+            bundleIdentifierPrefix: "com.acme",
+            components: components
+        )
+        let outcome = try ProjectGenerator(configuration: configuration, console: console)
+            .generate(in: destination, initializeGit: false)
+        return try ProjectScanner(root: outcome.projectDirectory).scan()
+    }
+
+    // MARK: Prompt
+
+    @Test("The prompt carries derived facts and no source code")
+    func sendsFactsNotCode() throws {
+        let model = try model()
+        let prompt = DocumentationPrompt(model: model).text()
+
+        // Facts the document already shows.
+        #expect(prompt.contains(model.architecture.summary))
+        #expect(prompt.contains("Presentation: MVVM"))
+        #expect(prompt.contains("Articles"))
+
+        // Nothing that would only be in the source itself. Keel sends what it
+        // derived, which is the whole privacy claim.
+        #expect(!prompt.contains("import SwiftUI"))
+        #expect(!prompt.contains("var body: some View"))
+        #expect(!prompt.contains("func "))
+    }
+
+    @Test("The prompt forbids inventing and forbids guessing at undetermined facts")
+    func instructsAgainstInvention() throws {
+        let prompt = try DocumentationPrompt(model: model()).text()
+
+        #expect(prompt.contains("do not invent"))
+        #expect(prompt.contains("undetermined"))
+    }
+
+    @Test("Undetermined findings reach the prompt marked as undetermined")
+    func marksUndeterminedFindings() throws {
+        // A minimal project has several. The agent must be told they are
+        // unknown rather than simply not told about them.
+        let prompt = try DocumentationPrompt(model: model(components: [])).text()
+        #expect(prompt.contains("Undetermined (undetermined)"))
+    }
+
+    // MARK: Rendering
+
+    @Test("An overview is fenced, attributed, and marked as unchecked")
+    func fencesAndAttributes() throws {
+        let overview = ProjectDocument.Overview(
+            prose: "A small application.", agentName: "Claude Code"
+        )
+        let markdown = try ProjectDocument(model: model(), overview: overview).markdown()
+
+        #expect(markdown.contains(ProjectDocument.overviewStart))
+        #expect(markdown.contains(ProjectDocument.overviewEnd))
+        #expect(markdown.contains("Written by Claude Code"))
+        // Unattributed prose in a file of measured facts reads as another fact.
+        #expect(markdown.contains("not checked by Keel"))
+        #expect(markdown.contains("A small application."))
+    }
+
+    @Test("An overview adds a section and changes nothing else")
+    func leavesDerivedSectionsAlone() throws {
+        let model = try model()
+        let plain = ProjectDocument(model: model).markdown()
+        let withOverview = ProjectDocument(
+            model: model,
+            overview: .init(prose: "Prose.", agentName: "Agent")
+        ).markdown()
+
+        #expect(!plain.contains(ProjectDocument.overviewStart))
+
+        // Removing the fenced block must give back exactly the plain document,
+        // which is what "interpretation cannot override facts" means in bytes.
+        let start = try #require(withOverview.range(of: ProjectDocument.overviewStart))
+        let end = try #require(withOverview.range(of: ProjectDocument.overviewEnd))
+
+        // The block and the separator inserted with it, and nothing else.
+        var cut = end.upperBound
+        if withOverview[cut...].hasPrefix("\n\n") {
+            cut = withOverview.index(cut, offsetBy: 2)
+        }
+        var stripped = withOverview
+        stripped.removeSubrange(start.lowerBound..<cut)
+
+        #expect(stripped == plain)
+    }
+
+    @Test("Without an overview the document is byte-identical to before the AI layer")
+    func defaultIsUnchanged() throws {
+        let model = try model()
+        // Determinism is the default; --ai is the only thing that breaks it,
+        // and only inside its own fence.
+        #expect(ProjectDocument(model: model).markdown()
+                == ProjectDocument(model: model, overview: nil).markdown())
+    }
+}
+
+// MARK: - Command, with the AI flags
+
+/// These run the real binary, so they point `XDG_CONFIG_HOME` at a temporary
+/// directory. Reading the real config could find a selected agent and then run
+/// it, which would spend someone's quota to satisfy a test suite.
+@Suite("keel document --ai")
+struct DocumentAICommandTests {
+
+    private let console = Console(useColor: false)
+
+    private func withProject<T>(_ body: (URL, [String: String]) throws -> T) throws -> T {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-aicli-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let configuration = ProjectConfiguration(
+            name: try ProjectName("Probe"),
+            bundleIdentifierPrefix: "com.acme",
+            components: Set(Component.allCases)
+        )
+        let outcome = try ProjectGenerator(configuration: configuration, console: console)
+            .generate(in: root, initializeGit: false)
+
+        let emptyConfig = root.appendingPathComponent("config")
+        return try body(outcome.projectDirectory, ["XDG_CONFIG_HOME": emptyConfig.path])
+    }
+
+    @Test("--show-prompt prints what would be sent and sends nothing")
+    func showsPromptWithoutSending() throws {
+        try withProject { root, environment in
+            let result = try CLIRunner.run(
+                ["document", root.path, "--show-prompt"], environment: environment
+            )
+
+            #expect(result.succeeded)
+            #expect(result.standardOutput.contains("FACTS"))
+            #expect(result.standardOutput.contains("do not invent"))
+            // It is a dry run in both directions: no agent, and no file.
+            #expect(!FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("PROJECT.md").path
+            ))
+        }
+    }
+
+    @Test("--ai without a selected agent stops rather than quietly writing the plain document")
+    func refusesWithoutAnAgent() throws {
+        try withProject { root, environment in
+            let result = try CLIRunner.run(
+                ["document", root.path, "--ai"], environment: environment
+            )
+
+            // Ignoring the flag would be worse than failing: the user asked for
+            // something and would get a file that does not contain it.
+            #expect(result.succeeded == false)
+            #expect(result.combinedOutput.contains("No AI agent is selected"))
+        }
+    }
+
+    @Test("Without --ai nothing about the AI layer is reachable")
+    func defaultTouchesNoAgent() throws {
+        try withProject { root, environment in
+            let result = try CLIRunner.run(["document", root.path], environment: environment)
+
+            #expect(result.succeeded)
+            let contents = try String(
+                contentsOf: root.appendingPathComponent("PROJECT.md"), encoding: .utf8
+            )
+            #expect(!contents.contains(ProjectDocument.overviewStart))
+        }
+    }
+}

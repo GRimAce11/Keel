@@ -275,6 +275,27 @@ flags, edit this file rather than waiting for a Keel release.
 > An installed agent is not a selected one, and a selected one still only runs
 > when a command you typed asks it to. No core command uses an agent at all.
 
+### Letting an agent interpret the facts
+
+```bash
+keel document --show-prompt   # exactly what would be sent, sending nothing
+keel document --ai            # add an overview written by your agent
+```
+
+`--ai` adds one section: a few paragraphs orienting someone about to make their
+first change. Everything else in `PROJECT.md` is byte-for-byte what it would be
+without the flag — the overview lives inside its own fence, is attributed to the
+agent that wrote it, and says it was not checked by Keel.
+
+**Keel sends the facts, not your code.** The prompt contains the same derived
+findings the document already prints: counts, conformances, folder names,
+evidence. No source ever leaves the machine, and `--show-prompt` shows you the
+whole thing before you commit to sending it.
+
+If the agent fails — no quota, no network, wrong flags — you get the document
+anyway, with a warning and no overview. Losing a report because a bonus
+paragraph failed would be a poor trade.
+
 <details>
 <summary><b>All options</b></summary>
 
@@ -327,8 +348,8 @@ starting with a digit are caught before anything is written.
 | ✅ | Architecture detection | done |
 | ✅ | `keel document` without AI | done |
 | ✅ | AI agent detection & provider abstraction | done |
-| 🔨 | AI-assisted documentation | next |
-| ⚪ | `keel check` and `keel doctor` | |
+| ✅ | AI-assisted documentation | done |
+| 🔨 | `keel check` and `keel doctor` | next |
 | ⚪ | `keel add feature` | |
 | ✅ | Homebrew distribution | done |
 
