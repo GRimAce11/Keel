@@ -371,3 +371,38 @@ struct AIPolicyTests {
         #expect(ProjectAIConfiguration.load(from: empty) == nil)
     }
 }
+
+// MARK: - Readiness
+
+@Suite("Agent readiness")
+struct AgentReadinessTests {
+
+    @Test("Readiness is recorded, never inferred")
+    func readinessIsEarned() throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-ready-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = AgentStore(url: directory.appendingPathComponent("ai.json"))
+
+        // Detection runs nothing, so an installed agent that has never answered
+        // is exactly as unproven as one that is not installed.
+        #expect(store.load().verified.isEmpty)
+
+        var configuration = store.load()
+        configuration.verified["claude"] = Date()
+        try store.save(configuration)
+
+        #expect(store.load().verified["claude"] != nil)
+        #expect(store.load().verified["codex"] == nil)
+    }
+
+    @Test("Verification survives a configuration written before it existed")
+    func toleratesOlderConfiguration() throws {
+        let old = Data("""
+            {"agentID":"claude","command":"claude","arguments":["-p","{prompt}"]}
+            """.utf8)
+        let configuration = try JSONDecoder().decode(AIConfiguration.self, from: old)
+
+        #expect(configuration.verified.isEmpty)
+    }
+}

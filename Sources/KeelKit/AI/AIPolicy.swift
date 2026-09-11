@@ -38,10 +38,22 @@ public enum AIMode: String, Codable, Sendable, Equatable, CaseIterable {
 public struct AIConfiguration: Codable, Sendable, Equatable {
     public var mode: AIMode
     public var selection: AgentSelection?
+    /// When each agent last answered `keel ai verify`.
+    ///
+    /// Readiness is recorded rather than inferred. Keel cannot tell whether an
+    /// agent is installed-but-unauthenticated without running it, and detection
+    /// deliberately runs nothing — so the only honest source of "this works" is
+    /// the one time it demonstrably did.
+    public var verified: [String: Date]
 
-    public init(mode: AIMode = .never, selection: AgentSelection? = nil) {
+    public init(
+        mode: AIMode = .never,
+        selection: AgentSelection? = nil,
+        verified: [String: Date] = [:]
+    ) {
         self.mode = mode
         self.selection = selection
+        self.verified = verified
     }
 
     /// Reads the current shape, and the shape Keel wrote before modes existed.
@@ -54,10 +66,12 @@ public struct AIConfiguration: Codable, Sendable, Equatable {
            container.contains(.mode) {
             mode = try container.decode(AIMode.self, forKey: .mode)
             selection = try container.decodeIfPresent(AgentSelection.self, forKey: .selection)
+            verified = (try? container.decode([String: Date].self, forKey: .verified)) ?? [:]
             return
         }
         mode = .never
         selection = try? AgentSelection(from: decoder)
+        verified = [:]
     }
 }
 

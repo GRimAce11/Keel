@@ -32,10 +32,13 @@ extension AI {
             let detected = AgentDetector().detect()
 
             console.heading("Agents")
+            console.detail("Keel runs none of these unless you ask it to.")
+            console.detail("")
 
             if detected.isEmpty {
                 console.detail("None of the agents Keel recognises is installed.")
             } else {
+                let verified = store.load().verified
                 let nameWidth = detected.map(\.agent.name.count).max() ?? 0
                 let idWidth = detected.map(\.agent.id.count).max() ?? 0
                 for found in detected {
@@ -45,7 +48,13 @@ extension AI {
                     let id = found.agent.id.padding(
                         toLength: max(idWidth, 1), withPad: " ", startingAt: 0
                     )
-                    console.detail("\(name)  \(id)  \(found.path)")
+                    // "installed" and "works" are different claims, and Keel
+                    // only knows the second one if it has been shown.
+                    let readiness = verified[found.agent.id] == nil
+                        ? "not verified"
+                        : "verified"
+                    console.detail("\(name)  \(id)  \(readiness)")
+                    console.detail("\(String(repeating: " ", count: nameWidth + idWidth + 4))\(found.path)")
                 }
             }
 
@@ -293,6 +302,13 @@ extension AI {
 
             let firstLine = answer.split(separator: "\n").first.map(String.init) ?? answer
             console.detail("Reply   \(firstLine)")
+
+            // Recording it is what makes `keel ai list` able to say anything
+            // about readiness at all.
+            let store = AgentStore()
+            var configuration = store.load()
+            configuration.verified[provider.selection.agentID] = Date()
+            try? store.save(configuration)
 
             if answer.lowercased().contains("keel") {
                 console.success("The agent answered. Keel can reach it.")
