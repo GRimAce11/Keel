@@ -466,6 +466,41 @@ starting with a digit are caught before anything is written.
 
 <br>
 
+## 💡 Examples
+
+**Starting something new**
+
+```bash
+keel new Bookshelf --yes
+cd Bookshelf
+open Bookshelf.xcodeproj          # builds and runs as generated
+keel add feature Library          # a second feature, shaped like the first
+```
+
+**Picking up a project you did not write**
+
+```bash
+cd InheritedApp
+keel doctor      # can this machine even build it?
+keel inspect     # targets, structure, and the architecture it implies
+keel check       # what is already wrong with it
+keel document    # PROJECT.md, to read on the train
+```
+
+Everything there works on a project that does not currently compile — which is
+usually the state an inherited project is in.
+
+**Keeping it honest in CI**
+
+```yaml
+- run: keel check --strict          # fails on warnings too
+- run: keel document --check        # fails when PROJECT.md has drifted
+```
+
+Neither touches the network, needs an account, or invokes an agent.
+
+<br>
+
 ## 🗺 Roadmap
 
 <details>
