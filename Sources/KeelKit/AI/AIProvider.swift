@@ -60,7 +60,7 @@ public struct CommandLineAgent: AIProvider {
         store: AgentStore = AgentStore(),
         detector: AgentDetector = AgentDetector()
     ) throws -> CommandLineAgent {
-        guard let selection = store.load() else { throw AIError.noAgentSelected }
+        guard let selection = store.load().selection else { throw AIError.noAgentSelected }
         guard let path = detector.locate(selection.command) else {
             throw AIError.agentNotInstalled(command: selection.command)
         }

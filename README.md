@@ -275,6 +275,30 @@ flags, edit this file rather than waiting for a Keel release.
 > An installed agent is not a selected one, and a selected one still only runs
 > when a command you typed asks it to. No core command uses an agent at all.
 
+Selecting an agent permits it; it does not schedule it. When it may actually run
+is a separate setting:
+
+```bash
+keel ai mode never    # default — Keel alone unless --ai is passed
+keel ai mode ask      # Keel asks first, when someone is there to answer
+keel ai mode always   # Keel goes ahead
+```
+
+A repository can lower this through `.keel/config.json`, and can never raise it:
+
+```json
+{ "ai": { "mode": "never" } }
+```
+
+Cloning someone's project must not hand their configuration permission to run an
+agent on your machine, so the more restrictive of the two settings always wins —
+and `keel ai` tells you when a project is the reason.
+
+`keel document --no-ai` is absolute. It overrides the mode, the project config
+and anything else: no provider, no external process, no network. It is the flag
+you reach for when you need to be certain, and a guarantee with an exception
+would not be one.
+
 ### Letting an agent interpret the facts
 
 ```bash
@@ -282,10 +306,17 @@ keel document --show-prompt   # exactly what would be sent, sending nothing
 keel document --ai            # add an overview written by your agent
 ```
 
-`--ai` adds one section: a few paragraphs orienting someone about to make their
-first change. Everything else in `PROJECT.md` is byte-for-byte what it would be
-without the flag — the overview lives inside its own fence, is attributed to the
-agent that wrote it, and says it was not checked by Keel.
+**The agent returns data; Keel writes the Markdown.** It fills named fields —
+overview, data flow, conventions, risks, where to start — and Keel renders every
+heading around them. That ordering is the point: if the agent authored the
+document, every guarantee about structure and attribution would hold only as
+long as it followed instructions. Replies are validated before anything is
+rendered, so Markdown an agent injects into a field is stripped rather than
+opening a section that looks measured.
+
+Everything else in `PROJECT.md` is byte-for-byte what it would be without the
+flag — the interpretation lives inside its own fence, is attributed, and says
+Keel checked its shape and not its claims.
 
 **Keel sends the facts, not your code.** The prompt contains the same derived
 findings the document already prints: counts, conformances, folder names,

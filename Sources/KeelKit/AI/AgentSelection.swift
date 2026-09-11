@@ -56,24 +56,26 @@ public struct AgentStore {
             .appendingPathComponent("ai.json")
     }
 
-    /// The stored selection, or `nil` when none was made.
+    /// The stored configuration, or the default when there is none.
     ///
-    /// A malformed file reads as "no selection" rather than as an error. The
+    /// A malformed file reads as the default rather than as an error. The
     /// default is always Keel alone, so the safe reading of a file Keel cannot
-    /// parse is that no agent was chosen.
-    public func load() -> AgentSelection? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(AgentSelection.self, from: data)
+    /// parse is that nothing was configured.
+    public func load() -> AIConfiguration {
+        guard let data = try? Data(contentsOf: url),
+              let configuration = try? JSONDecoder().decode(AIConfiguration.self, from: data)
+        else { return AIConfiguration() }
+        return configuration
     }
 
-    public func save(_ selection: AgentSelection) throws {
+    public func save(_ configuration: AIConfiguration) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(selection).write(to: url, options: .atomic)
+        try encoder.encode(configuration).write(to: url, options: .atomic)
     }
 
     /// Forgets the selection. Removing the file is the whole operation: absent

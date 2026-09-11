@@ -12,7 +12,7 @@ struct AI: ParsableCommand {
             you typed, and only after you have selected it. Every core command \
             works with no agent at all.
             """,
-        subcommands: [Show.self, Use.self, Forget.self, Verify.self],
+        subcommands: [Show.self, List.self, Use.self, Mode.self, Forget.self, Verify.self],
         defaultSubcommand: Show.self
     )
 }
@@ -65,9 +65,17 @@ extension AI {
             detected: [DetectedAgent],
             console: Console
         ) {
+            let configuration = store.load()
+            let policy = AIPolicy.resolve(
+                configuration: configuration,
+                project: ProjectAIConfiguration.load(
+                    from: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                )
+            )
+
             console.heading("Selection")
 
-            guard let selection = store.load() else {
+            guard let selection = configuration.selection else {
                 console.detail("None. Keel works alone, which is the default.")
                 console.detail("Choose one with `keel ai use <id>`.")
                 console.detail("")
@@ -80,13 +88,83 @@ extension AI {
             // Printed from the same field that is executed, so this cannot
             // describe one command while running another.
             console.detail("Runs    \(selection.displayCommand)")
+            console.detail("When    \(policy.mode.displayName)")
             console.detail("Config  \(store.url.path)")
+
+            if policy.restrictedByProject {
+                console.detail("")
+                console.detail(
+                    "This project's \(ProjectAIConfiguration.fileName) asks for less than your "
+                    + "setting, and a project may only ever restrict."
+                )
+            }
 
             if !detected.contains(where: { $0.agent.id == selection.agentID }) {
                 console.warn(
                     "\(selection.command) is selected but not on your PATH. "
                     + "Reinstall it, or run `keel ai forget`."
                 )
+            }
+        }
+    }
+}
+
+// MARK: - List
+
+extension AI {
+    /// `keel ai list` is what the plan names; `show` is the default
+    /// subcommand. They are the same report rather than two views that could
+    /// drift.
+    struct List: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "list",
+            abstract: "List detected agents and the current selection."
+        )
+
+        func run() throws { try Show().run() }
+    }
+}
+
+// MARK: - Mode
+
+extension AI {
+    struct Mode: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "mode",
+            abstract: "Set when Keel may use the selected agent.",
+            discussion: """
+                never (the default) keeps Keel alone unless --ai is passed on a \
+                run. ask means Keel asks first, when there is someone there to \
+                ask. always means it goes ahead. A project may lower this, never \
+                raise it.
+                """
+        )
+
+        @Argument(help: "never, ask, or always.")
+        var mode: String
+
+        func run() throws {
+            let console = Console.shared
+
+            guard let value = AIMode(rawValue: mode.lowercased()) else {
+                console.error("`\(mode)` is not a mode.")
+                console.detail("Known: \(AIMode.allCases.map(\.rawValue).joined(separator: ", "))")
+                throw ExitCode.failure
+            }
+
+            let store = AgentStore()
+            var configuration = store.load()
+            configuration.mode = value
+            do {
+                try store.save(configuration)
+            } catch {
+                console.error("Could not write \(store.url.path): \(error.localizedDescription)")
+                throw ExitCode.failure
+            }
+
+            console.success("AI mode: \(value.displayName)")
+            if value != .never && configuration.selection == nil {
+                console.warn("No agent is selected yet, so nothing will run. Use `keel ai use <id>`.")
             }
         }
     }
@@ -119,8 +197,10 @@ extension AI {
 
             let store = AgentStore()
             let selection = AgentSelection(agent: agent)
+            var configuration = store.load()
+            configuration.selection = selection
             do {
-                try store.save(selection)
+                try store.save(configuration)
             } catch {
                 console.error("Could not write \(store.url.path): \(error.localizedDescription)")
                 throw ExitCode.failure
@@ -155,7 +235,7 @@ extension AI {
             let console = Console.shared
             let store = AgentStore()
 
-            guard store.load() != nil else {
+            guard store.load().selection != nil else {
                 console.detail("No agent was selected.")
                 return
             }

@@ -29,11 +29,22 @@ struct Document: ParsableCommand {
     @Flag(name: .customLong("ai"), help: "Add an interpretation from the agent you selected.")
     var useAI = false
 
+    @Flag(name: .customLong("no-ai"), help: "Guarantee no agent runs, whatever is configured.")
+    var noAI = false
+
     @Flag(name: .customLong("show-prompt"), help: "Print what --ai would send, and send nothing.")
     var showPrompt = false
 
     func run() throws {
         let console = Console.shared
+
+        // Asking for both is a contradiction, and guessing which was meant is
+        // exactly the wrong instinct for a flag about permission.
+        if useAI && noAI {
+            console.error("--ai and --no-ai contradict each other.")
+            throw ExitCode.failure
+        }
+
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
 
         let model: ProjectModel
@@ -51,7 +62,7 @@ struct Document: ParsableCommand {
 
         let markdown = ProjectDocument(
             model: model,
-            interpretation: useAI ? try interpretation(for: model, console: console) : nil
+            interpretation: try interpretationIfWanted(for: model, console: console)
         ).markdown()
 
         if toStandardOutput {
@@ -73,6 +84,53 @@ struct Document: ParsableCommand {
 
         console.success("Wrote \(displayPath(of: destination, from: model))")
         console.detail(model.architecture.summary)
+    }
+
+    // MARK: - Whether to ask at all
+
+    /// Decides whether an agent runs, before any of it happens.
+    ///
+    /// Precedence is flags, then the user's mode, then the project's — and a
+    /// project may only ever lower it. `--no-ai` is absolute: it is the flag
+    /// someone reaches for when they need to be certain, and a guarantee with
+    /// an exception is not one.
+    private func interpretationIfWanted(
+        for model: ProjectModel,
+        console: Console
+    ) throws -> ProjectDocument.Interpretation? {
+        if noAI { return nil }
+        if useAI { return try interpretation(for: model, console: console) }
+
+        let policy = AIPolicy.resolve(
+            configuration: AgentStore().load(),
+            project: ProjectAIConfiguration.load(from: URL(fileURLWithPath: model.rootPath))
+        )
+        guard policy.selection != nil else { return nil }
+
+        switch policy.mode {
+        case .never:
+            return nil
+
+        case .always:
+            return try interpretation(for: model, console: console)
+
+        case .ask:
+            // Nobody to ask means the answer is no. Blocking on a prompt in CI
+            // would hang a build rather than fail it.
+            guard InteractivePrompt.isAvailable else {
+                console.detail("AI mode is ask, but nothing is attached to answer. Skipping.")
+                return nil
+            }
+            let agent = policy.selection.map {
+                Agent.known(id: $0.agentID)?.name ?? $0.agentID
+            } ?? "the selected agent"
+            guard InteractivePrompt(console: console).confirm(
+                "Ask \(agent) to interpret these facts?",
+                detail: "sends the analysis, not your code",
+                default: false
+            ) else { return nil }
+            return try interpretation(for: model, console: console)
+        }
     }
 
     // MARK: - Interpretation

@@ -91,13 +91,13 @@ struct AgentSelectionTests {
     @Test("A selection round-trips through the config file")
     func roundTrips() throws {
         try withStore { store in
-            #expect(store.load() == nil)
+            #expect(store.load().selection == nil)
 
             let agent = try #require(Agent.known(id: "claude"))
             let selection = AgentSelection(agent: agent)
-            try store.save(selection)
+            try store.save(AIConfiguration(selection: selection))
 
-            #expect(store.load() == selection)
+            #expect(store.load().selection == selection)
         }
     }
 
@@ -105,10 +105,10 @@ struct AgentSelectionTests {
     func clears() throws {
         try withStore { store in
             let agent = try #require(Agent.known(id: "codex"))
-            try store.save(AgentSelection(agent: agent))
+            try store.save(AIConfiguration(selection: AgentSelection(agent: agent)))
             try store.clear()
 
-            #expect(store.load() == nil)
+            #expect(store.load().selection == nil)
             #expect(!FileManager.default.fileExists(atPath: store.url.path))
             // Clearing twice is not an error; the end state is the same.
             try store.clear()
@@ -125,7 +125,7 @@ struct AgentSelectionTests {
 
             // The safe reading of an unparseable file is that nothing was
             // chosen — the default is always Keel alone.
-            #expect(store.load() == nil)
+            #expect(store.load() == AIConfiguration())
         }
     }
 
@@ -231,7 +231,7 @@ struct CommandLineAgentTests {
 
         let store = AgentStore(url: directory.appendingPathComponent("ai.json"))
         let agent = try #require(Agent.known(id: "claude"))
-        try store.save(AgentSelection(agent: agent))
+        try store.save(AIConfiguration(selection: AgentSelection(agent: agent)))
 
         #expect(throws: AIError.agentNotInstalled(command: "claude")) {
             try CommandLineAgent.resolve(store: store, detector: AgentDetector(path: ""))
@@ -268,5 +268,106 @@ struct AgentCatalogueTests {
     @Test("Ids are unique, since they are what selection is keyed on")
     func idsAreUnique() {
         #expect(Set(Agent.known.map(\.id)).count == Agent.known.count)
+    }
+}
+
+// MARK: - When Keel may use an agent
+
+/// Selecting an agent and permitting its use are different decisions, and this
+/// is where the second one is settled.
+@Suite("AIPolicy")
+struct AIPolicyTests {
+
+    private func selection() throws -> AgentSelection {
+        AgentSelection(agent: try #require(Agent.known(id: "claude")))
+    }
+
+    @Test("With no project configuration the user's mode stands")
+    func usesConfiguredMode() throws {
+        let policy = AIPolicy.resolve(
+            configuration: AIConfiguration(mode: .always, selection: try selection())
+        )
+
+        #expect(policy.mode == .always)
+        #expect(policy.restrictedByProject == false)
+    }
+
+    @Test(
+        "A project may lower the mode",
+        arguments: [
+            (AIMode.always, AIMode.never, AIMode.never),
+            (.always, .ask, .ask),
+            (.ask, .never, .never),
+        ]
+    )
+    func projectsMayRestrict(user: AIMode, project: AIMode, expected: AIMode) throws {
+        let policy = AIPolicy.resolve(
+            configuration: AIConfiguration(mode: user, selection: try selection()),
+            project: ProjectAIConfiguration(mode: project)
+        )
+
+        #expect(policy.mode == expected)
+        #expect(policy.restrictedByProject)
+    }
+
+    @Test(
+        "A project may never raise it",
+        arguments: [
+            (AIMode.never, AIMode.always),
+            (.never, .ask),
+            (.ask, .always),
+        ]
+    )
+    func projectsMayNotGrant(user: AIMode, project: AIMode) throws {
+        // Cloning a repository must not hand its configuration permission to
+        // run an agent on your machine.
+        let policy = AIPolicy.resolve(
+            configuration: AIConfiguration(mode: user, selection: try selection()),
+            project: ProjectAIConfiguration(mode: project)
+        )
+
+        #expect(policy.mode == user)
+        #expect(policy.restrictedByProject == false)
+    }
+
+    @Test("The default is Keel alone")
+    func defaultsToNever() {
+        #expect(AIConfiguration().mode == .never)
+        #expect(AIConfiguration().selection == nil)
+    }
+
+    @Test("A configuration written before modes existed reads as never")
+    func migratesOlderConfiguration() throws {
+        // Choosing an agent was never permission to use it unasked, so the old
+        // shape must not decode into anything more permissive.
+        let old = Data("""
+            {"agentID":"claude","command":"claude","arguments":["-p","{prompt}"]}
+            """.utf8)
+        let configuration = try JSONDecoder().decode(AIConfiguration.self, from: old)
+
+        #expect(configuration.mode == .never)
+        #expect(configuration.selection?.agentID == "claude")
+    }
+
+    @Test("Configuration round-trips, and an unreadable file reads as the default")
+    func roundTripsAndFailsSafe() throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-policy-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = AgentStore(url: directory.appendingPathComponent("ai.json"))
+
+        let configuration = AIConfiguration(mode: .ask, selection: try selection())
+        try store.save(configuration)
+        #expect(store.load() == configuration)
+
+        try "not json".write(to: store.url, atomically: true, encoding: .utf8)
+        #expect(store.load() == AIConfiguration())
+    }
+
+    @Test("A project without a config file restricts nothing")
+    func absentProjectConfigIsNotARestriction() {
+        let empty = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-noconfig-\(UUID().uuidString)")
+        #expect(ProjectAIConfiguration.load(from: empty) == nil)
     }
 }
