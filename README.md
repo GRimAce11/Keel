@@ -284,6 +284,17 @@ cannot tell rather than guessing.
 
 Drop it in CI next to your tests and documentation stops drifting.
 
+`PROJECT.md` also carries a section written for whoever picks the project up
+next — often a coding agent: the architecture rules the project follows, its
+conventions, what not to do, where to start reading, and the commands to build
+and test it.
+
+Every rule describes what the project **already does**. If some view models are
+not `@MainActor`, Keel does not print "view models are `@MainActor`" — a rule
+nobody follows is worse than no rule, because the next person follows it into
+the inconsistency. The prohibitions are exactly the rules `keel check` enforces,
+so following the document and passing the checker cannot come apart.
+
 > [!NOTE]
 > Keel replaces its own `PROJECT.md` without asking, and refuses to replace one
 > it did not write. Pass `--force` if you mean it.

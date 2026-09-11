@@ -65,6 +65,7 @@ public struct ProjectDocument {
             atAGlance(),
             architecture(),
             structure(),
+            workingOnIt(),
             targets(),
             dependencies(),
             schemes(),
@@ -202,6 +203,63 @@ public struct ProjectDocument {
         """
 
         return section
+    }
+
+    // MARK: Working on it
+
+    /// The section written for whoever picks this project up next.
+    ///
+    /// Every rule describes what the project already does, and every
+    /// prohibition is one `keel check` enforces — so following this document
+    /// and passing the checker cannot come apart.
+    private func workingOnIt() -> String? {
+        let context = ProjectContext(model: model)
+        var parts: [String] = []
+
+        func bullets(_ heading: String, _ items: [String]) {
+            guard !items.isEmpty else { return }
+            parts.append("### \(heading)\n\n" + items.map { "- \($0)" }.joined(separator: "\n"))
+        }
+
+        bullets("Architecture rules", context.architectureRules())
+        bullets("Conventions", context.conventions())
+        bullets("Dependencies", context.dependencyRules())
+        bullets("Do not", context.prohibitions())
+
+        let files = context.importantFiles()
+        if !files.isEmpty {
+            parts.append(
+                "### Start here\n\n"
+                    + table(["Path", "What it is"], files.map { [escaped($0.path), $0.purpose] })
+            )
+        }
+
+        let commands = context.commands()
+        if !commands.isEmpty {
+            parts.append(
+                "### Commands\n\n"
+                    + table(
+                        ["Command", "Purpose"],
+                        commands.map { ["`\(escaped($0.command))`", $0.purpose] }
+                    )
+            )
+        }
+
+        let concerns = context.concerns()
+        if concerns.isEmpty {
+            parts.append("### Known concerns\n\nNone. `keel check` reports nothing.")
+        } else {
+            parts.append(
+                "### Known concerns\n\n"
+                    + concerns.map { concern in
+                        let where_ = concern.location.map { " (\(escaped($0)))" } ?? ""
+                        return "- **\(concern.severity.displayName)** \(escaped(concern.message))\(where_)"
+                    }.joined(separator: "\n")
+            )
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return "## Working on this project\n\n" + parts.joined(separator: "\n\n")
     }
 
     // MARK: Structure

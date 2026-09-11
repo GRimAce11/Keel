@@ -713,3 +713,107 @@ struct DocumentFingerprintTests {
         #expect(DocumentFingerprint.extract(from: "<!-- keel:fingerprint not json -->") == nil)
     }
 }
+
+// MARK: - Context for whoever reads it next
+
+/// Rules describe what the project does. A rule nobody follows is worse than no
+/// rule, so these tests are mostly about what is *withheld*.
+@Suite("ProjectContext")
+struct ProjectContextTests {
+
+    private let console = Console(useColor: false)
+
+    private func context(
+        components: Set<Component> = Set(Component.allCases),
+        damage: (URL) throws -> Void = { _ in }
+    ) throws -> ProjectContext {
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-context-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let configuration = ProjectConfiguration(
+            name: try ProjectName("Probe"),
+            bundleIdentifierPrefix: "com.acme",
+            components: components
+        )
+        let outcome = try ProjectGenerator(configuration: configuration, console: console)
+            .generate(in: destination, initializeGit: false)
+        try damage(outcome.projectDirectory)
+        return ProjectContext(model: try ProjectScanner(root: outcome.projectDirectory).scan())
+    }
+
+    @Test("Rules describe what this project actually does")
+    func statesRealRules() throws {
+        let rules = try context().architectureRules()
+
+        #expect(rules.contains("View models are `@MainActor`."))
+        #expect(rules.contains("Observable state lives in `@Observable` types."))
+        #expect(rules.contains { $0.contains("AppContainer") })
+        #expect(rules.contains("Persistence is SwiftData."))
+    }
+
+    @Test("A rule the project does not follow is withheld, not asserted")
+    func withholdsUnfollowedRules() throws {
+        let loosened = try context(damage: { root in
+            // One view model that is not isolated makes "view models are
+            // @MainActor" untrue, and printing it anyway would lead the next
+            // person into the inconsistency.
+            let directory = root.appendingPathComponent("Probe/Features/Loose")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try "import Foundation\n\nfinal class LooseViewModel {}\n".write(
+                to: directory.appendingPathComponent("LooseViewModel.swift"),
+                atomically: true, encoding: .utf8
+            )
+        })
+
+        #expect(!loosened.architectureRules().contains("View models are `@MainActor`."))
+    }
+
+    @Test("A project without persistence or networking claims neither")
+    func withholdsAbsentInfrastructure() throws {
+        let rules = try context(components: []).architectureRules()
+
+        #expect(!rules.contains { $0.contains("Persistence") })
+        #expect(!rules.contains { $0.contains("APIClient") })
+    }
+
+    @Test("Prohibitions only cover conventions this project has")
+    func scopesProhibitions() throws {
+        let minimal = try context(components: []).prohibitions()
+        // No view models here, so telling someone how to write one is noise.
+        #expect(!minimal.contains { $0.contains("view model") })
+        #expect(minimal.contains { $0.contains("keel check") })
+
+        let full = try context().prohibitions()
+        #expect(full.contains { $0.contains("view model") })
+        #expect(full.contains { $0.contains("repository") })
+    }
+
+    @Test("Prohibitions match what the checker enforces")
+    func prohibitionsAgreeWithTheChecker() throws {
+        // If these came apart, following the document would fail the checker.
+        let generated = try context()
+        #expect(generated.concerns().isEmpty)
+        #expect(generated.prohibitions().contains {
+            $0.contains("Run `keel check` before committing")
+        })
+    }
+
+    @Test("Start-here paths point at real roles, not at whatever matched first")
+    func namesTheRightFiles() throws {
+        let files = try context().importantFiles()
+        let byPurpose = Dictionary(files.map { ($0.purpose, $0.path) }, uniquingKeysWith: { a, _ in a })
+
+        // A nested `L10n.App` enum is not the app entry point.
+        #expect(byPurpose["App entry point"] == "Probe/App/ProbeApp.swift")
+        #expect(byPurpose["Composition root"] == "Probe/App/AppContainer.swift")
+    }
+
+    @Test("Commands name the project's own scheme")
+    func buildsRealCommands() throws {
+        let commands = try context().commands()
+        #expect(commands.contains { $0.command.contains("-scheme Probe") })
+        #expect(commands.contains { $0.command == "keel check" })
+    }
+}
