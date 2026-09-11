@@ -11,6 +11,9 @@ public struct TemplateCatalog {
     /// Directory every project gets, whatever was selected.
     public static let baseDirectoryName = "Base"
 
+    /// Templates for one feature added to a project that already exists.
+    public static let featureDirectoryName = "Feature"
+
     public let root: URL
 
     public enum CatalogError: Error, CustomStringConvertible {
@@ -38,6 +41,10 @@ public struct TemplateCatalog {
 
     static var bundledRoot: URL? {
         Bundle.module.url(forResource: "Templates", withExtension: nil)
+    }
+
+    public func featureDirectory() -> URL? {
+        existingDirectory(named: Self.featureDirectoryName)
     }
 
     // MARK: - Selection

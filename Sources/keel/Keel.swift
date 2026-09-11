@@ -15,6 +15,7 @@ struct Keel: ParsableCommand {
         version: KeelVersion.current,
         subcommands: [
             New.self,
+            Add.self,
             Document.self,
             Inspect.self,
             Check.self,

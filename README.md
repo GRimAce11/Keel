@@ -118,6 +118,7 @@ flowchart TD
 | | Command | What it does | Status |
 |:--:|---|---|:--:|
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
+| ➕ | `keel add feature` | Generate a feature into an existing project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ✅ Working |
@@ -185,6 +186,28 @@ keel new MyApp --minimal              # app skeleton only
 keel new MyApp --no-networking        # skip one component
 keel new MyApp --bundle-id com.acme --ios 18.0
 ```
+
+### Adding to an existing project
+
+```bash
+keel add feature Profile
+```
+
+```text
+Features/Profile/
+├── Data/Profile Repository.swift
+├── Domain/Profile.swift
+└── Presentation/ProfileView.swift, ProfileViewModel.swift
+ProbeTests/Features/ProfileTests.swift
+```
+
+**The project decides the shape, not Keel.** Where features live, and which
+infrastructure exists, are read from the project before anything is written — so
+a project generated without networking gets a repository with no networking in
+it and a comment saying why, rather than a stack it never asked for. A project
+with no test target gets no test file.
+
+Generated features pass `keel check`, and a test asserts it.
 
 ### Reading an existing project
 
@@ -407,7 +430,7 @@ starting with a digit are caught before anything is written.
 | ✅ | AI-assisted documentation | done |
 | ✅ | `keel check` and `keel doctor` | done |
 | ✅ | Homebrew distribution | done |
-| 🔨 | `keel add feature` | next |
+| ✅ | `keel add feature` | done |
 
 </details>
 

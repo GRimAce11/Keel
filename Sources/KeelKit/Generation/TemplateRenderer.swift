@@ -28,7 +28,13 @@ public struct TemplateRenderer {
     let tokens: [String: String]
     let enabledComponents: Set<Component>
 
-    public init(configuration: ProjectConfiguration, date: Date = Date()) {
+    /// - Parameter extraTokens: substitutions beyond a project's own, for
+    ///   templates rendered into an existing project rather than a new one.
+    public init(
+        configuration: ProjectConfiguration,
+        date: Date = Date(),
+        extraTokens: [String: String] = [:]
+    ) {
         self.enabledComponents = configuration.components
 
         let year = Calendar.current.component(.year, from: date)
@@ -47,7 +53,7 @@ public struct TemplateRenderer {
             "__KEEL_VERSION__": KeelVersion.current,
             "__YEAR__": String(year),
             "__DATE__": formatter.string(from: date),
-        ]
+        ].merging(extraTokens) { _, extra in extra }
     }
 
     // MARK: - Public

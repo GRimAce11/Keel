@@ -62,6 +62,7 @@ public struct ProjectScanner {
                     name: path.deletingPathExtension().lastPathComponent,
                     path: relativePath(of: path),
                     objectVersion: file.objectVersion,
+                    usesSynchronizedFolders: file.usesSynchronizedFolders,
                     targets: file.targets()
                 )
             )

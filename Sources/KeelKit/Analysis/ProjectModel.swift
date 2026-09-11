@@ -74,6 +74,8 @@ public struct XcodeProject: Codable, Sendable, Equatable {
     /// The `objectVersion` in the pbxproj, which indicates the Xcode
     /// generation that wrote it.
     public let objectVersion: Int
+    /// Whether new files on disk are picked up without editing the pbxproj.
+    public let usesSynchronizedFolders: Bool
     public let targets: [Target]
 }
 

@@ -31,6 +31,13 @@ struct PBXProjectFile {
 
     let path: URL
     let objectVersion: Int
+    /// Whether the project picks files up from the folder tree.
+    ///
+    /// With synchronized groups, writing a file into the right directory is
+    /// all it takes. Without them a file has to be registered in the pbxproj,
+    /// and anything Keel writes will be invisible in Xcode until someone adds
+    /// it — which is worth saying rather than leaving to be discovered.
+    let usesSynchronizedFolders: Bool
 
     init(path: URL) throws {
         self.path = path
@@ -54,6 +61,9 @@ struct PBXProjectFile {
 
         self.objects = objects
         self.rootObjectID = rootObjectID
+        self.usesSynchronizedFolders = objects.values.contains {
+            ($0["isa"] as? String) == "PBXFileSystemSynchronizedRootGroup"
+        }
         self.objectVersion = (root["objectVersion"] as? String).flatMap(Int.init)
             ?? (root["objectVersion"] as? Int)
             ?? 0
