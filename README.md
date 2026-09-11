@@ -185,6 +185,10 @@ never have to take that on trust.
 brew install GRimAce11/tap/keel
 ```
 
+<sub>From Keel's own tap — `GRimAce11/tap` is the tap, `keel` is the formula, and no
+separate <code>brew tap</code> step is needed. Plain <code>brew install keel</code>
+will not find it.</sub>
+
 <details>
 <summary><b>From source</b></summary>
 
@@ -200,8 +204,9 @@ cp .build/release/keel /usr/local/bin/
 </details>
 
 <sub>Requires macOS 13+. Building from source needs Xcode 16.3 or newer, for
-Swift 6.1. Keel is distributed from its own tap rather than homebrew-core,
-which has notability requirements a young project does not meet.</sub>
+Swift 6.1. Keel ships from its own tap rather than homebrew-core, which requires
+a self-submitted project to have 225 stars, 90 forks or 90 watchers. A tap is
+what Homebrew's own policy recommends until then.</sub>
 
 <br>
 
