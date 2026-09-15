@@ -18,6 +18,7 @@ struct Keel: ParsableCommand {
             Add.self,
             Document.self,
             Inspect.self,
+            Explore.self,
             Check.self,
             Doctor.self,
             AI.self,

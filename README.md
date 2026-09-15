@@ -122,6 +122,7 @@ flowchart TD
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, relationships, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its real architecture boundaries | ✅ Working |
+| 🧭 | `keel explore` | Walk through a project's architecture interactively | ✅ Working |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
 
@@ -581,6 +582,41 @@ anyway, with a warning and no interpretation. Same if its reply is malformed,
 or if nothing in it survives checking. Losing a report because a bonus
 paragraph failed would be a poor trade.
 
+### Exploring a project you did not write
+
+```bash
+keel explore
+```
+
+```text
+Probe
+  Swift files   43
+  Types         62
+  Features      2
+  Targets       2
+
+  SwiftUI MVVM, screens fed both ways, organised by feature, wired through a
+  composition root, built on @Observable, async/await and SwiftData.
+
+    1. Architecture      5. Types by role
+    2. Features          6. Architecture warnings
+    3. Dependencies      7. Search
+    4. Data flow         8. Exit
+```
+
+Everything it shows is the same facts `inspect` and `check` report, reachable
+without knowing which flag produces them. Pick a dependency and it shows the
+evidence path; pick a warning and it shows the rule, the severity, the source,
+and why that rule exists; pick a type and it shows what it refers to and what
+refers back.
+
+Where the graph cannot establish something, it says **"Undetermined from static
+analysis"** rather than offering the likeliest shape.
+
+**It never invokes an agent**, and it works on a project that does not compile —
+the state an inherited project is usually in. Piped or redirected it prints the
+summary and stops, rather than waiting for somebody who is not there.
+
 ### Validating and diagnosing
 
 ```bash
@@ -684,6 +720,7 @@ keel add feature Library          # a second feature, shaped like the first
 
 ```bash
 cd InheritedApp
+keel explore                   # walk through it without knowing the flags
 keel doctor                    # can this machine even build it?
 keel inspect                   # targets, structure, and the architecture it implies
 keel inspect --relationships   # what is made of what
@@ -740,7 +777,8 @@ Neither touches the network, needs an account, or invokes an agent.
 | ✅ | `keel check` against real boundaries | done |
 | ✅ | Canonical evidence model | done |
 | ✅ | AI interprets relationships | done |
-| ⏳ | Interactive architecture explorer | next |
+| ✅ | Interactive architecture explorer | done |
+| ⏳ | Performance and hardening | next |
 
 </details>
 
