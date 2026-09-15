@@ -22,6 +22,9 @@ struct Inspect: ParsableCommand {
     @Flag(name: .customLong("dependencies"), help: "Report what each part of the project imports.")
     var dependencies = false
 
+    @Flag(name: .customLong("relationships"), help: "Report how the project's own types refer to each other.")
+    var relationships = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -43,6 +46,11 @@ struct Inspect: ParsableCommand {
 
         if dependencies {
             renderDependencies(inspection, console: console)
+            return
+        }
+
+        if relationships {
+            renderRelationships(inspection, console: console)
             return
         }
 
@@ -104,6 +112,107 @@ struct Inspect: ParsableCommand {
         console.detail("")
         console.detail("Reported, not failed. A cycle between modules is usually a")
         console.detail("problem and occasionally deliberate.")
+    }
+
+    // MARK: - Relationships
+
+    /// How the project's own types are made of each other.
+    ///
+    /// The report is arranged by layer rather than by file, because the
+    /// question this answers is architectural: not "what is in this folder"
+    /// but "what does the presentation layer actually depend on".
+    ///
+    /// Two limits are printed rather than left to be inferred. These are
+    /// mentions found in source, not calls observed at runtime — Keel can say
+    /// a line names a type and can point at the line, and says nothing about
+    /// whether it runs. And the graph is built from production code only, so a
+    /// type used solely by tests appears here as unreferenced.
+    private func renderRelationships(_ inspection: ProjectModel, console: Console) {
+        let graph = inspection.typeGraph
+        console.heading(inspection.name)
+
+        guard !graph.nodes.isEmpty else {
+            console.detail("No Swift types found to relate.")
+            return
+        }
+
+        console.detail(
+            "\(graph.nodes.count) type\(graph.nodes.count == 1 ? "" : "s"), "
+            + "\(graph.references.count) reference\(graph.references.count == 1 ? "" : "s") "
+            + "between them."
+        )
+        console.detail("Read from the app's own source; test targets are left out.")
+
+        renderRoles(graph, console: console)
+
+        for layer in TypeRole.Layer.allCases {
+            renderLayer(layer, of: graph, console: console)
+        }
+
+        renderRelationshipFindings(graph, console: console)
+
+        console.heading("Scope")
+        console.detail("These are references written in source: one type names another, at")
+        console.detail("a line you can open. Not a call graph — Keel does not claim any of")
+        console.detail("them runs, or in what order.")
+    }
+
+    private func renderRoles(_ graph: TypeGraph, console: Console) {
+        let counts = graph.roleCounts()
+        guard !counts.isEmpty else { return }
+
+        console.heading("Roles")
+        let width = counts.map(\.role.displayName.count).max() ?? 0
+        for entry in counts {
+            let name = entry.role.displayName.padding(
+                toLength: max(width, 1), withPad: " ", startingAt: 0
+            )
+            console.detail("\(name)  \(entry.count)")
+        }
+    }
+
+    private func renderLayer(_ layer: TypeRole.Layer, of graph: TypeGraph, console: Console) {
+        let relationships = graph.relationships(inLayer: layer)
+        guard !relationships.isEmpty else { return }
+
+        console.heading("\(layer.displayName) relationships (\(relationships.count))")
+
+        var lastSubject: String?
+        for relationship in relationships {
+            if relationship.from != lastSubject {
+                console.detail(relationship.from)
+                lastSubject = relationship.from
+            }
+            let evidence = relationship.evidence.count
+            console.detail(
+                "  → \(relationship.to)  \(relationship.principalKind.displayName)"
+                + (evidence > 1 ? "  \(evidence) mentions" : "")
+            )
+        }
+    }
+
+    /// Relationships that usually mean something is wrong.
+    ///
+    /// Named and not failed. Each of these is occasionally deliberate, and
+    /// Keel is not in a position to tell which — so it says what it found,
+    /// says how firmly, and leaves the call to whoever knows the codebase.
+    private func renderRelationshipFindings(_ graph: TypeGraph, console: Console) {
+        let findings = graph.findings
+        guard !findings.isEmpty else { return }
+
+        console.heading("Worth a look (\(findings.count))")
+        for finding in findings {
+            console.detail("\(finding.headline)  \(finding.support.displayName)")
+            console.detail("  \(finding.rule.summary)")
+            for reference in finding.evidence.prefix(3) {
+                console.detail("  \(reference.location)  \(reference.kind.displayName)")
+            }
+            if finding.evidence.count > 3 {
+                console.detail("  and \(finding.evidence.count - 3) more")
+            }
+        }
+        console.detail("")
+        console.detail("Reported, not failed. Each of these is sometimes on purpose.")
     }
 
     // MARK: - Report

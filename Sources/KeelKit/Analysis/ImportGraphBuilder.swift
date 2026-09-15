@@ -123,41 +123,10 @@ struct ImportGraphBuilder {
 
     // MARK: - Ownership
 
-    /// Places a file by matching its path against the layout already scanned.
-    ///
-    /// Longest match wins, so a file inside a feature is attributed to the
-    /// feature rather than to the `Features` folder above it.
+    /// Delegated so that the type graph places a file the same way this does.
     func ownership(of path: String) -> FileOwnership {
-        let target = model.targets
-            .map(\.name)
-            .filter { path == $0 || path.hasPrefix($0 + "/") }
-            .max(by: { $0.count < $1.count })
-
-        if let feature = model.features
-            .filter({ path.hasPrefix($0.path + "/") })
-            .max(by: { $0.path.count < $1.path.count })
-        {
-            return FileOwnership(
-                target: target,
-                module: model.modules.first { path.hasPrefix($0.path + "/") }?.name,
-                feature: feature.name,
-                layer: layer(of: path, within: feature)
-            )
-        }
-
-        let module = model.modules
-            .filter { path.hasPrefix($0.path + "/") }
-            .max(by: { $0.path.count < $1.path.count })
-
-        return FileOwnership(target: target, module: module?.name, feature: nil, layer: nil)
-    }
-
-    /// The feature subfolder a file sits in, when the feature has any.
-    private func layer(of path: String, within feature: Feature) -> String? {
-        let remainder = path.dropFirst(feature.path.count + 1)
-        guard let first = remainder.split(separator: "/").first.map(String.init),
-              feature.layers.contains(first)
-        else { return nil }
-        return first
+        FileOwnershipResolver(
+            targets: model.targets, modules: model.modules, features: model.features
+        ).ownership(of: path)
     }
 }

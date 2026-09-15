@@ -120,7 +120,7 @@ flowchart TD
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | ➕ | `keel add feature` | Generate a feature into an existing project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
-| 🔍 | `keel inspect` | Report targets, schemes, dependencies, architecture | ✅ Working |
+| 🔍 | `keel inspect` | Report targets, schemes, dependencies, relationships, architecture | ✅ Working |
 | ✅ | `keel check` | Validate a project against its architecture rules | ✅ Working |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
@@ -246,8 +246,10 @@ Generated features pass `keel check`, and a test asserts it.
 
 ```bash
 cd SomeApp
-keel inspect          # targets, schemes, dependencies, source, architecture
-keel inspect --json   # the same, as JSON
+keel inspect                  # targets, schemes, dependencies, source, architecture
+keel inspect --dependencies   # what each part of the project imports
+keel inspect --relationships  # how the project's own types refer to each other
+keel inspect --json           # all of it, as JSON
 ```
 
 Everything reported is read from the project's own files — no `xcodebuild`, no
@@ -308,6 +310,44 @@ problem and occasionally deliberate.
 > compiles into the same module, so one feature using another's types produces
 > no import at all. Keel says so rather than letting silence read as "nothing
 > depends on this".
+
+### What is made of what
+
+Imports stop at the module boundary. Type references do not — so this is the
+report that can see inside a single-target app, where almost every iOS project
+lives.
+
+```bash
+keel inspect --relationships
+```
+
+```text
+Presentation relationships (27)
+  ArticleListView
+    → ArticleListViewModel       property  2 mentions
+    → ArticleRepositoryProtocol  property  2 mentions
+    → ArticleDetailView          constructs
+
+Worth a look (2)
+  ArticleListView → ArticleRepositoryProtocol  from naming
+    A view reaches a repository directly
+    Probe/Features/Articles/Presentation/ArticleListView.swift:11  property
+```
+
+Every edge is parsed, not matched: a superclass is told apart from a protocol
+conformance, an initializer parameter from any other parameter, a declared
+property from a mention in a method body. Each one carries the file and line
+that wrote it.
+
+A name that matches nothing the project declares is left out rather than
+reported weakly, and a name two types share is marked as a name match instead
+of a resolution. Roles work the same way — a type conforming to `View` is a
+view *from the code*, a type called `ArticleRepository` is a repository *from
+naming*, and a finding is only ever as strong as its weaker end.
+
+> [!NOTE]
+> These are references written in source, at lines you can open. Not a call
+> graph: Keel does not claim any of them runs, or in what order.
 
 ### Writing it down
 

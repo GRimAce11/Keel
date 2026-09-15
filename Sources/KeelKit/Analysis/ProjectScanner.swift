@@ -121,7 +121,11 @@ public struct ProjectScanner {
         let modules = layout.modules()
         let features = layout.features()
         let summary = sourceScanner.scan()
-        let analysis = analyze(files: sourceScanner.swiftFiles(), relativeTo: projectRoot)
+        // Parsed once, in two shapes: `parsed` still carries every raw
+        // mention, which only the type graph needs, and `analysis` is what the
+        // model itself will hold.
+        let parsed = analyze(files: sourceScanner.swiftFiles(), relativeTo: projectRoot)
+        let analysis = parsed.withoutReferences()
 
         return ProjectModel(
             name: name,
@@ -147,6 +151,18 @@ public struct ProjectScanner {
                     // real question, and the graph records ownership so a
                     // caller can exclude them.
                     analysis: analysis
+                )
+            ).build(),
+            typeGraph: TypeGraphBuilder(
+                inputs: .init(
+                    targets: projects.flatMap(\.targets),
+                    modules: modules,
+                    features: features,
+                    // Production code only, for the same reason architecture
+                    // detection reads production code only: a test double
+                    // imitates the real thing, and counting one would let the
+                    // test suite invent relationships the app does not have.
+                    analysis: parsed.excludingTests()
                 )
             ).build(),
             architecture: ArchitectureDetector(

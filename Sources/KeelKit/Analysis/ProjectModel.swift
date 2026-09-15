@@ -30,6 +30,11 @@ public struct ProjectModel: Codable, Sendable, Equatable {
     public let analysis: SourceAnalysis
     /// What the project's own files reach for, and where they said so.
     public let importGraph: ImportGraph
+    /// What the project's own types are made of each other.
+    ///
+    /// Where `importGraph` stops — at the module boundary — this one keeps
+    /// going, because a type reference does not need a boundary to cross.
+    public let typeGraph: TypeGraph
     /// What those facts add up to, with the evidence behind each conclusion.
     public let architecture: Architecture
 

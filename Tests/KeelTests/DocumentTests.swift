@@ -140,6 +140,7 @@ struct ProjectDocumentTests {
             ),
             analysis: SourceAnalysis(files: []),
             importGraph: ImportGraph(edges: [], isSingleModule: true),
+            typeGraph: .empty,
             architecture: ArchitectureDetector(
                 modules: [], features: [], analysis: SourceAnalysis(files: [])
             ).detect()
@@ -172,6 +173,7 @@ struct ProjectDocumentTests {
             ),
             analysis: SourceAnalysis(files: []),
             importGraph: ImportGraph(edges: [], isSingleModule: true),
+            typeGraph: .empty,
             architecture: ArchitectureDetector(
                 modules: [], features: [], analysis: SourceAnalysis(files: [])
             ).detect()
@@ -695,6 +697,7 @@ struct DocumentFingerprintTests {
             ),
             analysis: SourceAnalysis(files: []),
             importGraph: ImportGraph(edges: [], isSingleModule: true),
+            typeGraph: .empty,
             architecture: Architecture(
                 presentation: Finding(value: value == "MVVM" ? .mvvm : .mvc,
                                       support: .observed, evidence: []),

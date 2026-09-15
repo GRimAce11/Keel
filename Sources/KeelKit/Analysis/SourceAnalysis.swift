@@ -14,18 +14,85 @@ public struct ImportDeclaration: Codable, Sendable, Equatable {
     }
 }
 
+/// One place a type declaration mentions a name, before anything is known
+/// about what that name refers to.
+///
+/// Deliberately unresolved. The parser can see that `ProfileView` has a
+/// property written `ProfileViewModel`; it cannot see whether that name is a
+/// type this project declares, one a package vends, or one that no longer
+/// exists. `TypeGraphBuilder` answers that by checking the name against every
+/// declaration found in the project, the same way `ImportGraphBuilder` answers
+/// what an imported module is. Keeping the two steps apart is what makes the
+/// second one arguable: the syntax is a fact, the resolution is a lookup, and
+/// a reader can disagree with the lookup without doubting the fact.
+public struct TypeUsage: Codable, Sendable, Hashable {
+    /// Qualified name of the declaration the mention was written inside.
+    public let owner: String
+    /// The name exactly as written — `Article`, `[Article]`'s element,
+    /// `Outer.Inner`. Never rewritten, so evidence quotes the source.
+    public let referenced: String
+    public let kind: ReferenceKind
+    public let line: Int
+
+    public init(owner: String, referenced: String, kind: ReferenceKind, line: Int) {
+        self.owner = owner
+        self.referenced = referenced
+        self.kind = kind
+        self.line = line
+    }
+}
+
 /// What parsing found in one Swift file.
 public struct FileAnalysis: Codable, Sendable, Equatable {
     public let path: String
     public let imports: [ImportDeclaration]
     public let types: [TypeDeclaration]
+    /// Every mention of a name by a type in this file, unresolved.
+    ///
+    /// Working material. `TypeGraphBuilder` reads these once, resolves them
+    /// against the project's declarations and throws away everything that does
+    /// not match — which on a real project is most of them, since a file
+    /// mentions far more of Apple's types than its own. The model that comes
+    /// out of a scan therefore carries the resolved `TypeGraph` and not these;
+    /// see `withoutReferences()`.
+    public let references: [TypeUsage]
     public let functionCount: Int
     public let asyncFunctionCount: Int
     public let throwingFunctionCount: Int
 
+    init(
+        path: String,
+        imports: [ImportDeclaration],
+        types: [TypeDeclaration],
+        references: [TypeUsage],
+        functionCount: Int,
+        asyncFunctionCount: Int,
+        throwingFunctionCount: Int
+    ) {
+        self.path = path
+        self.imports = imports
+        self.types = types
+        self.references = references
+        self.functionCount = functionCount
+        self.asyncFunctionCount = asyncFunctionCount
+        self.throwingFunctionCount = throwingFunctionCount
+    }
+
     /// Module names alone, for the many callers that do not care where the
     /// import was written.
     public var importedModules: [String] { imports.map(\.module) }
+
+    func withoutReferences() -> FileAnalysis {
+        FileAnalysis(
+            path: path,
+            imports: imports,
+            types: types,
+            references: [],
+            functionCount: functionCount,
+            asyncFunctionCount: asyncFunctionCount,
+            throwingFunctionCount: throwingFunctionCount
+        )
+    }
 }
 
 // MARK: - Declarations
@@ -106,6 +173,24 @@ public struct SourceAnalysis: Codable, Sendable, Equatable {
 
     public var types: [TypeDeclaration] {
         files.flatMap(\.types)
+    }
+
+    /// Every unresolved mention, across every file.
+    public var references: [TypeUsage] {
+        files.flatMap(\.references)
+    }
+
+    /// The same analysis with the raw mentions dropped.
+    ///
+    /// What a scan puts on the model, once `TypeGraphBuilder` has had them.
+    /// Keeping them would roughly double what `inspect --json` prints, to say
+    /// a second time — unresolved, and mostly about Apple's types — what the
+    /// type graph already says resolved. Dropping them here rather than
+    /// hiding them from the encoder keeps the model honest: what `--json`
+    /// prints is the whole of what the model holds, and decoding it gives
+    /// back an equal value.
+    public func withoutReferences() -> SourceAnalysis {
+        SourceAnalysis(files: files.map { $0.withoutReferences() })
     }
 
     /// Declarations only — extensions are excluded, since an extension is a
