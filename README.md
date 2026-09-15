@@ -5,8 +5,8 @@
 ### Create, understand, and maintain iOS projects from the terminal.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GRimAce11/Keel/ci.yml?branch=main&style=for-the-badge&labelColor=0D1117&color=2EA043&label=CI)](https://github.com/GRimAce11/Keel/actions)
-[![Swift](https://img.shields.io/badge/Swift-6.1-F05138?style=for-the-badge&labelColor=0D1117&logo=swift&logoColor=F05138)](https://swift.org)
-[![Platform](https://img.shields.io/badge/macOS-13%2B-0A84FF?style=for-the-badge&labelColor=0D1117&logo=apple&logoColor=white)](https://developer.apple.com)
+[![Swift](https://img.shields.io/badge/Swift-6.0-F05138?style=for-the-badge&labelColor=0D1117&logo=swift&logoColor=F05138)](https://swift.org)
+[![Platform](https://img.shields.io/badge/macOS-14%2B-0A84FF?style=for-the-badge&labelColor=0D1117&logo=apple&logoColor=white)](https://developer.apple.com)
 [![Generates](https://img.shields.io/badge/Generates-iOS%2017%2B-5E5CE6?style=for-the-badge&labelColor=0D1117)](https://developer.apple.com)
 [![License](https://img.shields.io/badge/License-MIT-8957E5?style=for-the-badge&labelColor=0D1117)](LICENSE)
 
