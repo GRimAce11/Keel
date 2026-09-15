@@ -17,7 +17,35 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
     public let targets: [String]
     /// Architecture verdicts, keyed by dimension.
     public let architecture: [String: String]
+    /// Which features depend on which, as sorted `A → B` pairs.
+    ///
+    /// Coupling between features is the kind of change a reader of the
+    /// document would want to know about, and it is stable: it moves when the
+    /// dependencies move and not otherwise. Counts of references deliberately
+    /// are not here — those shift on every ordinary edit and would make every
+    /// document permanently stale.
+    public let featureDependencies: [String]
     public let swiftFileCount: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case features, modules, dependencies, targets, architecture
+        case featureDependencies, swiftFileCount
+    }
+
+    /// Decoded leniently, because a document written by an older Keel has no
+    /// entry for a field added later. Failing to read it would turn every such
+    /// document from "stale" into "unreadable", which is a worse answer.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        features = try container.decode([String].self, forKey: .features)
+        modules = try container.decode([String].self, forKey: .modules)
+        dependencies = try container.decode([String].self, forKey: .dependencies)
+        targets = try container.decode([String].self, forKey: .targets)
+        architecture = try container.decode([String: String].self, forKey: .architecture)
+        featureDependencies =
+            (try? container.decode([String].self, forKey: .featureDependencies)) ?? []
+        swiftFileCount = try container.decode(Int.self, forKey: .swiftFileCount)
+    }
 
     public init(model: ProjectModel) {
         features = model.features.map(\.name).sorted()
@@ -28,6 +56,10 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
             model.architecture.findings.map { ($0.dimension, $0.value) },
             uniquingKeysWith: { first, _ in first }
         )
+        featureDependencies = model.dependencyGraph()
+            .edges(at: .feature)
+            .map { "\($0.from) → \($0.to)" }
+            .sorted()
         swiftFileCount = model.source.swiftFileCount
     }
 
@@ -68,6 +100,9 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
         changes += difference(modules, current.modules, noun: "module")
         changes += difference(dependencies, current.dependencies, noun: "package dependency")
         changes += difference(targets, current.targets, noun: "target")
+        changes += difference(
+            featureDependencies, current.featureDependencies, noun: "feature dependency"
+        )
 
         for (dimension, value) in architecture.sorted(by: { $0.key < $1.key }) {
             guard let now = current.architecture[dimension], now != value else { continue }

@@ -199,6 +199,14 @@ public struct SourceAnalysis: Codable, Sendable, Equatable {
         types.filter { $0.kind != .extensionOf }
     }
 
+    /// The protocols this project declares itself.
+    ///
+    /// The line between "our abstraction" and "Apple's", which three separate
+    /// rules were each working out for themselves.
+    public var declaredProtocolNames: Set<String> {
+        Set(declaredTypes.filter { $0.kind == .protocolType }.map(\.name))
+    }
+
     /// The same analysis with test sources left out.
     ///
     /// A test double imitates production code on purpose. A stub conforming to

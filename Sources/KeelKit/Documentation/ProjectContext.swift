@@ -23,6 +23,19 @@ public struct ProjectContext {
 
     private var analysis: SourceAnalysis { model.analysis.excludingTests() }
 
+    /// The declarations the type graph reads as view models.
+    ///
+    /// Asked of the graph rather than of a suffix, because the rules written
+    /// here and the rules `check` enforces have to describe the same set of
+    /// types. If the document promised "view models are @MainActor" about one
+    /// set and the checker demanded it of another, following the document
+    /// would not be enough to pass the checker — and that is the one thing
+    /// these two are supposed to guarantee together.
+    private var viewModels: [TypeDeclaration] {
+        let names = model.typeGraph.names(inRole: .viewModel)
+        return analysis.declaredTypes.filter { names.contains($0.name) }
+    }
+
     // MARK: - Rules
 
     /// What the project does, stated as the rule it amounts to.
@@ -30,7 +43,6 @@ public struct ProjectContext {
         var rules: [String] = []
         let architecture = model.architecture
 
-        let viewModels = analysis.types(namedWithSuffix: "ViewModel")
         if !viewModels.isEmpty, viewModels.allSatisfy({ $0.hasAttribute("MainActor") }) {
             rules.append("View models are `@MainActor`.")
         }
@@ -55,7 +67,7 @@ public struct ProjectContext {
 
         let repositories = analysis.types(namedWithSuffix: "Repository")
             .filter { $0.kind != .protocolType }
-        let protocols = Set(analysis.declaredTypes.filter { $0.kind == .protocolType }.map(\.name))
+        let protocols = analysis.declaredProtocolNames
         if !repositories.isEmpty, repositories.allSatisfy({ type in
             analysis.types.filter { $0.name == type.name }
                 .flatMap(\.inheritedTypes)
@@ -86,10 +98,10 @@ public struct ProjectContext {
         if case .layered = model.architecture.featureLayering.value,
            let layers = model.features.first?.layers, !layers.isEmpty {
             conventions.append(
-                "Every feature is divided into \(Architecture.list(layers.map { "`\($0)`" }))."
+                "Every feature is divided into \(Prose.list(layers.map { "`\($0)`" }))."
             )
         }
-        if !analysis.types(namedWithSuffix: "ViewModel").isEmpty {
+        if !viewModels.isEmpty {
             conventions.append("A screen's state type is named `<Feature>ViewModel`.")
         }
         if !analysis.types(namedWithSuffix: "Repository").isEmpty {
@@ -109,7 +121,7 @@ public struct ProjectContext {
             ]
         }
         return [
-            "Packages in use: \(Architecture.list(model.dependencies.map { "`\($0.name)`" }))."
+            "Packages in use: \(Prose.list(model.dependencies.map { "`\($0.name)`" }))."
         ]
     }
 
@@ -120,7 +132,7 @@ public struct ProjectContext {
     public func prohibitions() -> [String] {
         var rules = ["Do not leave a scheme unshared — CI cannot build what it cannot see."]
 
-        if !analysis.types(namedWithSuffix: "ViewModel").isEmpty {
+        if !viewModels.isEmpty {
             rules.append("Do not add a view model that is not `@MainActor`.")
             rules.append("Do not add a view model that nothing can observe.")
         }

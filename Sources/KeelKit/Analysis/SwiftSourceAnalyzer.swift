@@ -170,7 +170,7 @@ private final class DeclarationVisitor: SyntaxVisitor {
         let name = node.extendedType.trimmedDescription
         // What the extension extends, without its generic arguments, since
         // that is the name the declaration itself was written under.
-        let extended = Self.baseName(of: name)
+        let extended = TypeName.base(of: name)
         _ = record(node, name: name, kind: .extensionOf,
                    inheritance: node.inheritanceClause, modifiers: node.modifiers,
                    attributes: node.attributes, members: node.memberBlock,
@@ -390,12 +390,6 @@ private final class DeclarationVisitor: SyntaxVisitor {
     }
 
     // MARK: Helpers
-
-    /// `Array<Int>` -> `Array`, `Outer.Inner` -> `Outer.Inner`.
-    private static func baseName(of written: String) -> String {
-        guard let angle = written.firstIndex(of: "<") else { return written }
-        return String(written[written.startIndex..<angle])
-    }
 
     /// `@Observable`, `@MainActor`, `@Model` — the attribute name without its
     /// arguments, so `@available(iOS 17, *)` records as `available`.

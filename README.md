@@ -448,12 +448,16 @@ keel document --check    # writes nothing, exits non-zero when out of date
 
   Added feature Settings
   Added package dependency Alamofire
+  Added feature dependency Settings → Articles
 
   Run `keel document` to bring it up to date.
 ```
 
 It names what changed rather than only that something did, because a Markdown
-diff can say lines moved but not that a feature was added. Each document carries
+diff can say lines moved but not that a feature was added. Coupling counts as a
+change worth regenerating for; reference *counts* deliberately do not, since
+those move on every ordinary edit and would leave every document permanently
+stale. Each document carries
 a small record of the project it described, in an HTML comment that renders to
 nothing. A document written by hand has no such record, and `--check` says it
 cannot tell rather than guessing.

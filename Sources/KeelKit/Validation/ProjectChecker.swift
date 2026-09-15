@@ -45,11 +45,7 @@ public struct ProjectChecker {
         nodesByName = Dictionary(
             model.typeGraph.nodes.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first }
         )
-        declaredProtocols = Set(
-            model.analysis.excludingTests().declaredTypes
-                .filter { $0.kind == .protocolType }
-                .map(\.name)
-        )
+        declaredProtocols = model.analysis.excludingTests().declaredProtocolNames
     }
 
     public func check() -> [Diagnostic] {
@@ -96,7 +92,7 @@ public struct ProjectChecker {
                     rule: rule.id,
                     references: references,
                     message: "\(subject.name) refers to \(rule.subject), "
-                        + "\(Self.list(references.map(\.to))), directly.",
+                        + "\(Prose.list(unique: references.map(\.to))), directly.",
                     location: subject.location
                 )
             }
@@ -122,7 +118,7 @@ public struct ProjectChecker {
             diagnostic(
                 rule: "view-constructs-infrastructure",
                 references: references,
-                message: "\(subject.name) constructs \(Self.list(references.map(\.to))), "
+                message: "\(subject.name) constructs \(Prose.list(unique: references.map(\.to))), "
                     + "which the project injects elsewhere.",
                 location: subject.location
             )
@@ -166,7 +162,7 @@ public struct ProjectChecker {
             diagnostic(
                 rule: "concrete-repository-dependency",
                 references: references,
-                message: "\(subject.name) depends on \(Self.list(references.map(\.to))) "
+                message: "\(subject.name) depends on \(Prose.list(unique: references.map(\.to))) "
                     + "rather than the protocol in front of it.",
                 location: subject.location,
                 // The boundary is established by what the project mostly does,
@@ -478,10 +474,6 @@ public struct ProjectChecker {
 
     /// A repository with no abstraction in front of it.
     private func repositoriesWithoutProtocols() -> [Diagnostic] {
-        let declaredProtocols = Set(
-            analysis.declaredTypes.filter { $0.kind == .protocolType }.map(\.name)
-        )
-
         return analysis.types(namedWithSuffix: "Repository")
             .filter { $0.kind != .protocolType }
             .filter { type in
@@ -557,15 +549,14 @@ public struct ProjectChecker {
 
     // MARK: - Helpers
 
+    /// The declarations the type graph reads as view models.
+    ///
+    /// Asked of the graph rather than re-derived from a suffix, so the rules
+    /// below and the architecture section cannot end up describing different
+    /// sets of types.
     private var viewModels: [TypeDeclaration] {
-        analysis.types(namedWithSuffix: "ViewModel")
+        let names = typeGraph.names(inRole: .viewModel)
+        return analysis.declaredTypes.filter { names.contains($0.name) }
     }
 
-    /// "a, b and c" — matching the prose everywhere else.
-    static func list(_ items: [String]) -> String {
-        let unique = Array(Set(items)).sorted()
-        guard let last = unique.last else { return "" }
-        guard unique.count > 1 else { return last }
-        return unique.dropLast().joined(separator: ", ") + " and " + last
-    }
 }

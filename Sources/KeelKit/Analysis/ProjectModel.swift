@@ -2,13 +2,48 @@ import Foundation
 
 /// Everything Keel determined about a project, by reading its files.
 ///
-/// This is the one representation the rest of Keel is built on: `inspect`
-/// renders it, `document` will write from it, `check` will validate against it,
-/// and the optional AI layer will interpret it. Nothing downstream re-reads the
-/// project for itself, so there is a single definition of every fact.
+/// The one representation the rest of Keel is built on. `inspect` renders it,
+/// `document` writes from it, `check` validates against it, `--json` serialises
+/// it, and the optional AI layer is handed a summary of it. Nothing downstream
+/// re-reads the project for itself, so two commands cannot describe the same
+/// project differently.
 ///
-/// Every value here comes from the project. Nothing is guessed, and anything
-/// Keel could not determine is absent rather than invented.
+/// ## The layers
+///
+/// Each layer is built from the one above it, and states less than it could
+/// rather than more than it knows:
+///
+/// 1. **What is on disk** — `projects`, `schemes`, `dependencies`,
+///    `configurations`, `modules`, `features`. Read from the project file and
+///    the directory layout.
+/// 2. **What the source declares** — `analysis`. Types, imports, attributes and
+///    conformances, from a real parser rather than pattern matching.
+/// 3. **What reaches what** — `importGraph` across module boundaries,
+///    `typeGraph` within them. Every edge carries the file and line that wrote
+///    it.
+/// 4. **What depends on what** — `dependencyGraph()`, the two graphs joined and
+///    readable at any scope. Derived rather than stored: it is a join of things
+///    already here, and keeping a copy would give the copies room to disagree.
+/// 5. **What it all amounts to** — `architecture`. Every finding carries its
+///    evidence, and every piece of evidence says whether it is a relationship,
+///    a declaration, or a naming convention. Those are never collapsed into one
+///    number.
+///
+/// ## The rules this model keeps
+///
+/// - **One answer per question.** "Is this a view model" is decided in
+///   `TypeGraph` and nowhere else; "what protocols does this project declare"
+///   in `SourceAnalysis` and nowhere else. A second opinion is how a report
+///   comes to contradict itself.
+/// - **Undetermined is representable, and preferred to a guess.** Every
+///   architecture value has an `unknown` case, and a finding with nothing
+///   behind it reports no basis at all.
+/// - **Nothing an agent said reaches these fields.** A scan takes a directory
+///   and nothing else — no policy, no agent, no network — so AI has no route
+///   in. `ModelCoherenceTests` asserts it rather than trusting it.
+/// - **Deterministic and stable.** Files are parsed in parallel and every
+///   collection is ordered before it is stored, so two scans of one project
+///   produce byte-identical JSON.
 public struct ProjectModel: Codable, Sendable, Equatable {
     public let name: String
     public let rootPath: String

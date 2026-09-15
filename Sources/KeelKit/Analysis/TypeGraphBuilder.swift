@@ -121,7 +121,7 @@ struct TypeGraphBuilder {
         var bySimpleName: [String: [TypeDeclaration]] = [:]
         for declaration in declarations {
             byQualifiedName[declaration.name, default: []].append(declaration)
-            bySimpleName[Self.simpleName(of: declaration.name), default: []].append(declaration)
+            bySimpleName[TypeName.simple(of: declaration.name), default: []].append(declaration)
         }
 
         let nodes = declarations
@@ -179,7 +179,7 @@ struct TypeGraphBuilder {
                 }
             }
 
-            return (bySimpleName[Self.simpleName(of: written)] ?? [])
+            return (bySimpleName[TypeName.simple(of: written)] ?? [])
                 .filter { !$0.name.contains(".") }
         }
 
@@ -196,7 +196,7 @@ struct TypeGraphBuilder {
                 // two that depend on each other. `AuthManager` naming its own
                 // `AuthManager.StorageKey` is internal structure, and listing
                 // it as a relationship would bury the real ones.
-                guard !Self.areTheSameComponent(subject.name, object.name) else { continue }
+                guard !TypeName.areTheSameComponent(subject.name, object.name) else { continue }
 
                 let key = Key(from: subject.name, to: object.name, kind: usage.kind, line: usage.line, file: file.path)
                 guard seen.insert(key).inserted else { continue }
@@ -253,11 +253,21 @@ struct TypeGraphBuilder {
         if declaration.hasAttribute("Model") { return (.persistence, .observed) }
 
         for inherited in declaration.inheritedTypes {
-            let name = simpleName(of: inherited)
+            let name = TypeName.simple(of: inherited)
             if let role = appleConformances[name] { return (role, .observed) }
             if declaration.kind == .classType, let role = appleSuperclasses[name] {
                 return (role, .observed)
             }
+        }
+
+        // A class inheriting from the project's own `BaseViewController` is a
+        // view controller, and syntax cannot follow that name back to UIKit.
+        // The superclass's *name* is the evidence, so this is conventional —
+        // but it is evidence, and leaving it out would mean a UIKit codebase
+        // with one base class reported no controllers at all.
+        for inherited in declaration.inheritedTypes
+        where TypeName.simple(of: inherited).hasSuffix("ViewController") {
+            return (.viewController, .conventional)
         }
 
         let name = Self.roleName(of: declaration.name)
@@ -273,7 +283,7 @@ struct TypeGraphBuilder {
     /// says how it is declared, not what it is for. Same for the `Protocols`
     /// and `Type` some codebases use.
     static func roleName(of qualifiedName: String) -> String {
-        var name = simpleName(of: qualifiedName)
+        var name = TypeName.simple(of: qualifiedName)
         for ending in ["Protocol", "Protocols", "Type", "Providing", "Proto"]
         where name.count > ending.count && name.hasSuffix(ending) {
             name = String(name.dropLast(ending.count))
@@ -282,16 +292,6 @@ struct TypeGraphBuilder {
         return name
     }
 
-    /// Whether one name nests inside the other, or they are the same.
-    static func areTheSameComponent(_ first: String, _ second: String) -> Bool {
-        first == second
-            || first.hasPrefix(second + ".")
-            || second.hasPrefix(first + ".")
-    }
-
-    static func simpleName(of qualifiedName: String) -> String {
-        qualifiedName.split(separator: ".").last.map(String.init) ?? qualifiedName
-    }
 
     // MARK: - Findings
 

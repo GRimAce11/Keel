@@ -113,7 +113,7 @@ public struct Architecture: Codable, Sendable, Equatable {
 
         let foundations = [observationClause, concurrencyClause, persistenceClause].compactMap { $0 }
         if !foundations.isEmpty {
-            clauses.append("built on \(Self.list(foundations))")
+            clauses.append("built on \(Prose.list(foundations))")
         }
 
         guard !clauses.isEmpty else {
@@ -220,12 +220,6 @@ public struct Architecture: Codable, Sendable, Equatable {
         }
     }
 
-    /// "a, b and c" — no serial comma, matching the prose everywhere else.
-    static func list(_ items: [String]) -> String {
-        guard let last = items.last else { return "" }
-        guard items.count > 1 else { return last }
-        return items.dropLast().joined(separator: ", ") + " and " + last
-    }
 }
 
 // MARK: - Evidence
@@ -380,8 +374,14 @@ public struct Finding<Value: ArchitectureValue>: Codable, Sendable, Equatable {
     public static var undetermined: Finding { Finding(value: .unknown, evidence: []) }
 
     /// Which kinds of evidence contributed, strongest first.
+    ///
+    /// Empty when nothing was settled. An undetermined finding still carries
+    /// evidence — it says why Keel could not tell — but that evidence explains
+    /// an absence rather than supporting a verdict, and reporting a basis for a
+    /// conclusion nobody reached is how a report starts contradicting itself.
     public var bases: [EvidenceBasis] {
-        EvidenceBasis.allCases
+        guard support != .undetermined else { return [] }
+        return EvidenceBasis.allCases
             .filter { basis in evidence.contains { $0.basis == basis && $0.stance == .supporting } }
             .sorted { $0.rank > $1.rank }
     }

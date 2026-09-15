@@ -117,10 +117,10 @@ struct ArchitectureDetector {
             return Finding(
                 value: .mixed,
                 evidence: [
-                    .init(count(views.count, "SwiftUI view") + " declared.",
+                    .init(Prose.count(views.count, "SwiftUI view") + " declared.",
                           basis: .observedFact, locations: locations(views)),
-                    .init(count(controllers.count, "view controller") + " declared.",
-                          basis: .observedFact, locations: locations(controllers)),
+                    .init(Prose.count(controllers.count, "view controller") + " declared.",
+                          basis: .observedFact, locations: controllers.map(\.location)),
                 ]
             )
 
@@ -128,8 +128,8 @@ struct ArchitectureDetector {
             return Finding(
                 value: .mvc,
                 evidence: [
-                    .init(count(controllers.count, "view controller") + " declared.",
-                          basis: .observedFact, locations: locations(controllers)),
+                    .init(Prose.count(controllers.count, "view controller") + " declared.",
+                          basis: .observedFact, locations: controllers.map(\.location)),
                     .init("No type conforms to SwiftUI's View.", basis: .observedFact),
                 ]
             )
@@ -142,12 +142,17 @@ struct ArchitectureDetector {
     /// SwiftUI is in use; the question is whether screen state lives outside
     /// the view, and whether the views actually use it.
     private func swiftUIPresentation(views: [TypeDeclaration]) -> Finding<PresentationPattern> {
+        // The suffix, deliberately, and not `typeGraph.types(inRole: .viewModel)`.
+        // This rule's whole job is to separate what the project *names* from
+        // what it *does*, and the evidence below says "named with a ViewModel
+        // suffix" in so many words. Asking the graph would widen it to
+        // presenters and make that sentence false.
         let viewModels = analysis.types(namedWithSuffix: "ViewModel")
         // Context, not support: that SwiftUI views exist settles the SwiftUI
         // half of the question and says nothing about where their state lives,
         // which is the half this finding is about.
         var evidence: [ArchitectureEvidence] = [
-            .context(count(views.count, "SwiftUI view") + " declared.",
+            .context(Prose.count(views.count, "SwiftUI view") + " declared.",
                      basis: .observedFact, locations: locations(views)),
         ]
 
@@ -160,7 +165,7 @@ struct ArchitectureDetector {
 
         // 1. The names exist. A convention, and only that.
         evidence.append(
-            .init(count(viewModels.count, "type") + " named with a ViewModel suffix.",
+            .init(Prose.count(viewModels.count, "type") + " named with a ViewModel suffix.",
                   basis: .namingConvention, locations: locations(viewModels))
         )
 
@@ -194,20 +199,21 @@ struct ArchitectureDetector {
 
         let viewsUsingOne = Set(used.map(\.from)).count
         evidence.append(
-            .init("\(count(viewsUsingOne, "view")) \(viewsUsingOne == 1 ? "refers" : "refer") to one, "
-                  + "in \(count(used.count, "place")).",
+            .init("\(Prose.count(viewsUsingOne, "view")) \(viewsUsingOne == 1 ? "refers" : "refer") to one, "
+                  + "in \(Prose.count(used.count, "place")).",
                   basis: .structuralRelationship,
                   locations: Self.sortedLocations(used))
         )
         return Finding(value: .mvvm, evidence: evidence)
     }
 
-    /// A view controller by inheritance, or failing that by name.
-    private func viewControllers() -> [TypeDeclaration] {
-        analysis.declaredTypes.filter { type in
-            type.inheritedTypes.contains { $0.hasSuffix("ViewController") }
-                || type.name.hasSuffix("ViewController")
-        }
+    /// View controllers, from the one place that decides what a type is for.
+    ///
+    /// This used to have its own rule, which agreed with the type graph's by
+    /// luck rather than by construction. Two answers to "is this a view
+    /// controller" is one more than a report can survive.
+    private func viewControllers() -> [TypeNode] {
+        typeGraph.types(inRole: .viewController)
     }
 
     // MARK: - UI coexistence
@@ -225,8 +231,8 @@ struct ArchitectureDetector {
         }
 
         let counts: [ArchitectureEvidence] = [
-            swiftUI > 0 ? .init("SwiftUI imported by \(count(swiftUI, "file")).", basis: .observedFact) : nil,
-            uiKit > 0 ? .init("UIKit imported by \(count(uiKit, "file")).", basis: .observedFact) : nil,
+            swiftUI > 0 ? .init("SwiftUI imported by \(Prose.count(swiftUI, "file")).", basis: .observedFact) : nil,
+            uiKit > 0 ? .init("UIKit imported by \(Prose.count(uiKit, "file")).", basis: .observedFact) : nil,
         ].compactMap { $0 }
 
         guard swiftUI > 0, uiKit > 0 else {
@@ -236,7 +242,7 @@ struct ArchitectureDetector {
         // A representable or a hosting controller is the seam, and naming it
         // is more use than saying both frameworks are present.
         let bridges = analysis.declaredTypes.filter { type in
-            type.inheritedTypes.contains { Self.bridgingTypes.contains(Self.baseName(of: $0)) }
+            type.inheritedTypes.contains { Self.bridgingTypes.contains(TypeName.base(of: $0)) }
         }
 
         guard !bridges.isEmpty else {
@@ -252,8 +258,8 @@ struct ArchitectureDetector {
         return Finding(
             value: .bridged,
             evidence: counts + [
-                .init("\(count(bridges.count, "type")) \(bridges.count == 1 ? "bridges" : "bridge") "
-                      + "the two: \(Architecture.list(bridges.map(\.name).sorted())).",
+                .init("\(Prose.count(bridges.count, "type")) \(bridges.count == 1 ? "bridges" : "bridge") "
+                      + "the two: \(Prose.list(bridges.map(\.name).sorted())).",
                       basis: .observedFact, locations: locations(bridges))
             ]
         )
@@ -283,13 +289,13 @@ struct ArchitectureDetector {
         var evidence: [ArchitectureEvidence] = []
         if !toViewModels.isEmpty {
             evidence.append(
-                .init("\(count(toViewModels.count, "reference")) from a view to a view model.",
+                .init("\(Prose.count(toViewModels.count, "reference")) from a view to a view model.",
                       basis: .structuralRelationship, locations: Self.sortedLocations(toViewModels))
             )
         }
         if !toData.isEmpty {
             evidence.append(
-                .init("\(count(toData.count, "reference")) from a view straight to a repository, "
+                .init("\(Prose.count(toData.count, "reference")) from a view straight to a repository, "
                       + "client or persistence type.",
                       basis: .structuralRelationship, locations: Self.sortedLocations(toData))
             )
@@ -335,7 +341,7 @@ struct ArchitectureDetector {
             value: .coupled,
             evidence: edges.map { edge in
                 .init("\(edge.from) depends on \(edge.to) "
-                      + "(\(count(edge.evidence.count, "reference"))).",
+                      + "(\(Prose.count(edge.evidence.count, "reference"))).",
                       basis: .structuralRelationship,
                       locations: edge.evidence.map(\.location))
             }
@@ -364,7 +370,7 @@ struct ArchitectureDetector {
                     .init(edges.isEmpty
                           ? "No dependency crosses between layer folders."
                           : "The layer folders here are not ones Keel can place: "
-                            + "\(Architecture.list(Set(edges.flatMap { [$0.from, $0.to] }).sorted())).",
+                            + "\(Prose.list(Set(edges.flatMap { [$0.from, $0.to] }).sorted())).",
                           basis: .namingConvention)
                 ]
             )
@@ -378,7 +384,7 @@ struct ArchitectureDetector {
             return Finding(
                 value: .respected,
                 evidence: placed.map { edge in
-                    .init("\(edge.from) → \(edge.to) (\(count(edge.evidence.count, "reference"))).",
+                    .init("\(edge.from) → \(edge.to) (\(Prose.count(edge.evidence.count, "reference"))).",
                           basis: .structuralRelationship, locations: edge.evidence.map(\.location))
                 }
             )
@@ -388,7 +394,7 @@ struct ArchitectureDetector {
             value: .crossed,
             evidence: crossed.map { edge in
                 .init("\(edge.from) → \(edge.to) points back outwards "
-                      + "(\(count(edge.evidence.count, "reference"))).",
+                      + "(\(Prose.count(edge.evidence.count, "reference"))).",
                       basis: .structuralRelationship, locations: edge.evidence.map(\.location))
             } + placed
                 .filter { edge in
@@ -396,7 +402,7 @@ struct ArchitectureDetector {
                 }
                 .map { edge in
                     .context("\(edge.from) → \(edge.to) runs the way it should "
-                             + "(\(count(edge.evidence.count, "reference"))).",
+                             + "(\(Prose.count(edge.evidence.count, "reference"))).",
                              basis: .structuralRelationship)
                 }
         )
@@ -434,10 +440,10 @@ struct ArchitectureDetector {
         return Finding(
             value: .featuresOnShared,
             evidence: [
-                .init("Nothing in \(Architecture.list(shared.sorted())) depends on a feature.",
+                .init("Nothing in \(Prose.list(shared.sorted())) depends on a feature.",
                       basis: .structuralRelationship)
             ] + inward.map { edge in
-                .init("\(edge.from) → \(edge.to) (\(count(edge.evidence.count, "dependency", plural: "dependencies"))).",
+                .init("\(edge.from) → \(edge.to) (\(Prose.count(edge.evidence.count, "dependency", plural: "dependencies"))).",
                       basis: .structuralRelationship, locations: edge.evidence.map(\.location))
             }
         )
@@ -472,16 +478,16 @@ struct ArchitectureDetector {
         }
 
         var evidence: [ArchitectureEvidence] = [
-            .context(count(targets.count, "\(subject) type") + ": "
+            .context(Prose.count(targets.count, "\(subject) type") + ": "
                      + (targets.count > 4
                         ? targets.map(\.name).sorted().prefix(4).joined(separator: ", ") + " and others."
-                        : Architecture.list(targets.map(\.name).sorted()) + "."),
+                        : Prose.list(targets.map(\.name).sorted()) + "."),
                      basis: .observedFact, locations: targets.map(\.location))
         ]
         for (group, label) in [(byViews, "view"), (byViewModels, "view model"), (byOthers, "other type")]
         where !group.isEmpty {
             evidence.append(
-                .init("Reached by \(count(Set(group.map(\.from)).count, label)).",
+                .init("Reached by \(Prose.count(Set(group.map(\.from)).count, label)).",
                       basis: .structuralRelationship, locations: Self.sortedLocations(group))
             )
         }
@@ -522,10 +528,10 @@ struct ArchitectureDetector {
         if !features.isEmpty {
             let containers = modules.filter { $0.role == .features }.map(\.name)
             var evidence: [ArchitectureEvidence] = [
-                .init(count(features.count, "feature folder") + " found.", basis: .namingConvention)
+                .init(Prose.count(features.count, "feature folder") + " found.", basis: .namingConvention)
             ]
             if !containers.isEmpty {
-                evidence.append(.init("Held under \(Architecture.list(containers)).", basis: .namingConvention))
+                evidence.append(.init("Held under \(Prose.list(containers)).", basis: .namingConvention))
             }
             return Finding(value: .featureBased, evidence: evidence)
         }
@@ -534,7 +540,7 @@ struct ArchitectureDetector {
         if layers.count > 1 {
             return Finding(
                 value: .layered,
-                evidence: [.init("Top level divided into \(Architecture.list(layers.map(\.name))).",
+                evidence: [.init("Top level divided into \(Prose.list(layers.map(\.name))).",
                                  basis: .namingConvention)]
             )
         }
@@ -543,7 +549,7 @@ struct ArchitectureDetector {
         if named.count > 1 {
             return Finding(
                 value: .grouped,
-                evidence: [.init("Top level divided into \(Architecture.list(named.map(\.name))).",
+                evidence: [.init("Top level divided into \(Prose.list(named.map(\.name))).",
                                  basis: .namingConvention)]
             )
         }
@@ -551,7 +557,7 @@ struct ArchitectureDetector {
         return Finding(
             value: .unknown,
             evidence: [
-                .init("\(count(modules.count, "top-level folder")), not divided by feature, "
+                .init("\(Prose.count(modules.count, "top-level folder")), not divided by feature, "
                       + "by layer or by role.", basis: .namingConvention)
             ]
         )
@@ -575,7 +581,7 @@ struct ArchitectureDetector {
                 evidence: [
                     .init(features.count == 1
                           ? "The \(features[0].name) feature folder has no subfolders."
-                          : "None of the \(count(features.count, "feature folder")) is divided into subfolders.",
+                          : "None of the \(Prose.count(features.count, "feature folder")) is divided into subfolders.",
                           basis: .namingConvention)
                 ]
             )
@@ -586,7 +592,7 @@ struct ArchitectureDetector {
                 value: .inconsistent,
                 evidence: [
                     .init("\(divided.count) of \(features.count) features are divided into subfolders; "
-                          + "\(Architecture.list(features.filter { $0.layers.isEmpty }.map(\.name))) "
+                          + "\(Prose.list(features.filter { $0.layers.isEmpty }.map(\.name))) "
                           + "\(features.count - divided.count == 1 ? "is" : "are") flat.",
                           basis: .namingConvention)
                 ]
@@ -613,7 +619,7 @@ struct ArchitectureDetector {
 
         return Finding(
             value: .layered,
-            evidence: [.init("\(subject) divided into \(Architecture.list(layers)).", basis: .namingConvention)]
+            evidence: [.init("\(subject) divided into \(Prose.list(layers)).", basis: .namingConvention)]
         )
     }
 
@@ -634,9 +640,9 @@ struct ArchitectureDetector {
             return Finding(
                 value: .mixed,
                 evidence: [
-                    .init(count(macro.count, "type") + " marked @Observable.",
+                    .init(Prose.count(macro.count, "type") + " marked @Observable.",
                           basis: .observedFact, locations: locations(macro)),
-                    .init(count(objects.count, "type") + " conforming to ObservableObject.",
+                    .init(Prose.count(objects.count, "type") + " conforming to ObservableObject.",
                           basis: .observedFact, locations: locations(objects)),
                 ]
             )
@@ -644,14 +650,14 @@ struct ArchitectureDetector {
         case (true, false):
             return Finding(
                 value: .observationMacro,
-                evidence: [.init(count(macro.count, "type") + " marked @Observable.",
+                evidence: [.init(Prose.count(macro.count, "type") + " marked @Observable.",
                                  basis: .observedFact, locations: locations(macro))]
             )
 
         case (false, true):
             return Finding(
                 value: .observableObject,
-                evidence: [.init(count(objects.count, "type") + " conforming to ObservableObject.",
+                evidence: [.init(Prose.count(objects.count, "type") + " conforming to ObservableObject.",
                                  basis: .observedFact, locations: locations(objects))]
             )
         }
@@ -667,18 +673,18 @@ struct ArchitectureDetector {
 
         var evidence: [ArchitectureEvidence] = []
         if asyncFunctions > 0 {
-            evidence.append(.init(count(asyncFunctions, "async function") + ".", basis: .observedFact))
+            evidence.append(.init(Prose.count(asyncFunctions, "async function") + ".", basis: .observedFact))
         }
         if !actors.isEmpty {
-            evidence.append(.init(count(actors.count, "actor") + " declared.",
+            evidence.append(.init(Prose.count(actors.count, "actor") + " declared.",
                                   basis: .observedFact, locations: locations(actors)))
         }
         if !isolated.isEmpty {
-            evidence.append(.init(count(isolated.count, "type") + " isolated to @MainActor.",
+            evidence.append(.init(Prose.count(isolated.count, "type") + " isolated to @MainActor.",
                                   basis: .observedFact, locations: locations(isolated)))
         }
         if combineFiles > 0 {
-            evidence.append(.init("Combine imported by \(count(combineFiles, "file")).", basis: .observedFact))
+            evidence.append(.init("Combine imported by \(Prose.count(combineFiles, "file")).", basis: .observedFact))
         }
 
         switch (asyncFunctions > 0, combineFiles > 0) {
@@ -704,18 +710,18 @@ struct ArchitectureDetector {
         let managedObjects = analysis.declaredTypes.filter { $0.conforms(to: "NSManagedObject") }
 
         var swiftData: [ArchitectureEvidence] = [
-            .init("SwiftData imported by \(count(swiftDataFiles, "file")).", basis: .observedFact)
+            .init("SwiftData imported by \(Prose.count(swiftDataFiles, "file")).", basis: .observedFact)
         ]
         if !models.isEmpty {
-            swiftData.append(.init(count(models.count, "type") + " marked @Model.",
+            swiftData.append(.init(Prose.count(models.count, "type") + " marked @Model.",
                                    basis: .observedFact, locations: locations(models)))
         }
 
         var coreData: [ArchitectureEvidence] = [
-            .init("CoreData imported by \(count(coreDataFiles, "file")).", basis: .observedFact)
+            .init("CoreData imported by \(Prose.count(coreDataFiles, "file")).", basis: .observedFact)
         ]
         if !managedObjects.isEmpty {
-            coreData.append(.init(count(managedObjects.count, "type") + " inheriting from NSManagedObject.",
+            coreData.append(.init(Prose.count(managedObjects.count, "type") + " inheriting from NSManagedObject.",
                                   basis: .observedFact, locations: locations(managedObjects)))
         }
 
@@ -780,13 +786,10 @@ struct ArchitectureDetector {
         // fact. Declaring the protocol and conforming to it is not enough:
         // that says the abstraction exists, not that anything travels through
         // it.
-        let declaredProtocols = Set(
-            analysis.declaredTypes.filter { $0.kind == .protocolType }.map(\.name)
-        )
-        let injectedProtocols = injected.intersection(declaredProtocols)
+        let injectedProtocols = injected.intersection(analysis.declaredProtocolNames)
 
         let boundaries = ArchitectureEvidence(
-            "\(count(injectedProtocols.count, "protocol")) the project declares "
+            "\(Prose.count(injectedProtocols.count, "protocol")) the project declares "
             + "\(injectedProtocols.count == 1 ? "is" : "are") taken as an initializer parameter.",
             basis: .structuralRelationship,
             locations: Self.sortedLocations(
@@ -797,7 +800,7 @@ struct ArchitectureDetector {
 
         if let root = roots.first {
             var evidence: [ArchitectureEvidence] = [
-                .init("\(root) constructs \(count(builders[root]?.count ?? 0, "type")) "
+                .init("\(root) constructs \(Prose.count(builders[root]?.count ?? 0, "type")) "
                       + "that other types take as initializer parameters.",
                       basis: .structuralRelationship,
                       locations: Self.sortedLocations(
@@ -807,7 +810,7 @@ struct ArchitectureDetector {
             ]
             if roots.count > 1 {
                 evidence.append(
-                    .init("\(Architecture.list(roots)) all do this.", basis: .structuralRelationship)
+                    .init("\(Prose.list(roots)) all do this.", basis: .structuralRelationship)
                 )
             }
             if !injectedProtocols.isEmpty { evidence.append(boundaries) }
@@ -889,15 +892,4 @@ struct ArchitectureDetector {
             .map(\.location)
     }
 
-    /// `UIHostingController<Root>` -> `UIHostingController`.
-    private static func baseName(of written: String) -> String {
-        guard let angle = written.firstIndex(of: "<") else { return written }
-        return String(written[written.startIndex..<angle])
-    }
-
-    /// "1 view" / "4 views". Evidence has to be countable to be arguable.
-    private func count(_ number: Int, _ singular: String, plural: String? = nil) -> String {
-        guard number != 1 else { return "\(number) \(singular)" }
-        return "\(number) \(plural ?? singular + "s")"
-    }
 }

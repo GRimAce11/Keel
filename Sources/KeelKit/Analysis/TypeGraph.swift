@@ -323,6 +323,21 @@ public struct TypeGraph: Codable, Sendable, Equatable {
         nodes.first { $0.name == name }
     }
 
+    /// Every type Keel reads as filling one role.
+    ///
+    /// The canonical answer to "which types here are views". Asking it any
+    /// other way — a suffix here, a conformance there — is how two parts of
+    /// one report come to disagree about the same project, which is worse
+    /// than either of them being wrong on its own.
+    public func types(inRole role: TypeRole) -> [TypeNode] {
+        nodes.filter { $0.role == role }
+    }
+
+    /// The same, as names, for callers that need to filter declarations.
+    public func names(inRole role: TypeRole) -> Set<String> {
+        Set(types(inRole: role).map(\.name))
+    }
+
     public func references(from name: String) -> [TypeReference] {
         references.filter { $0.from == name }
     }
