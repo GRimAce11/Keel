@@ -9,6 +9,13 @@ import Foundation
 public protocol AnswerProvider: Sendable {
     func text(_ question: String, default defaultValue: String) -> String
     func confirm(_ question: String, detail: String?, default defaultValue: Bool) -> Bool
+    /// Picks one of several options, returning its index.
+    ///
+    /// Defaulted below, so an existing provider that only answers yes-or-no
+    /// questions keeps working. A non-interactive run takes the default, which
+    /// for the checker means "continue" — so piping `keel check` into a log
+    /// never waits for somebody who is not there.
+    func choice(_ question: String, options: [String], default defaultIndex: Int) -> Int
 
     /// Whether questions are actually being put to someone. When false the
     /// interview skips its section headings — printing "Include" above nothing
@@ -18,6 +25,10 @@ public protocol AnswerProvider: Sendable {
 
 public extension AnswerProvider {
     var isInteractive: Bool { false }
+
+    func choice(_ question: String, options: [String], default defaultIndex: Int) -> Int {
+        defaultIndex
+    }
 }
 
 // MARK: - Defaults
@@ -91,6 +102,35 @@ public struct InteractivePrompt: AnswerProvider {
                 // something the developer did not ask for.
                 console.warn("Answer y or n.")
             }
+        }
+    }
+
+    public func choice(_ question: String, options: [String], default defaultIndex: Int) -> Int {
+        guard !options.isEmpty else { return defaultIndex }
+        let fallback = min(max(defaultIndex, 0), options.count - 1)
+
+        while true {
+            console.write()
+            for (index, option) in options.enumerated() {
+                let marker = index == fallback ? console.styled("*", .cyan) : " "
+                print("  \(marker) \(index + 1). \(option)")
+            }
+            print(
+                "\(console.styled("?", .cyan)) \(question) "
+                + "\(console.styled("[1-\(options.count)]", .dim)) ",
+                terminator: ""
+            )
+
+            guard let line = readLine(strippingNewline: true) else {
+                print()
+                return fallback
+            }
+
+            let answer = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if answer.isEmpty { return fallback }
+            if let number = Int(answer), (1...options.count).contains(number) { return number - 1 }
+
+            console.warn("Answer with a number between 1 and \(options.count).")
         }
     }
 }

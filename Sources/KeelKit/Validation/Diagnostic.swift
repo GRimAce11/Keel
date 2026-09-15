@@ -36,20 +36,51 @@ public struct Diagnostic: Codable, Sendable, Equatable {
     public let location: String?
     /// Why it matters, or why Keel might be wrong about it.
     public let detail: String?
+    /// The lines the finding was read from.
+    ///
+    /// A relationship-based finding is only arguable if it says where it came
+    /// from. "This view depends on that client" is a claim; "at these four
+    /// lines" is something a reader can open and disagree with.
+    public let evidence: [Evidence]
+    /// How one thing reaches another, when the finding is about a chain rather
+    /// than a single reference — `Profile → Session → Profile`.
+    public let path: [String]?
 
     public init(
         rule: String,
         severity: Severity,
         message: String,
         location: String? = nil,
-        detail: String? = nil
+        detail: String? = nil,
+        evidence: [Evidence] = [],
+        path: [String]? = nil
     ) {
         self.rule = rule
         self.severity = severity
         self.message = message
         self.location = location
         self.detail = detail
+        self.evidence = Array(evidence.prefix(Self.evidenceLimit))
+        self.path = path
     }
+
+    /// One place the finding was read from.
+    public struct Evidence: Codable, Sendable, Equatable {
+        public let location: String
+        /// What the line said, in the terms the finding is about:
+        /// `property: APIClient`, `import SwiftData`.
+        public let statement: String
+
+        public init(location: String, statement: String) {
+            self.location = location
+            self.statement = statement
+        }
+    }
+
+    /// Capped for the same reason architecture evidence is: a finding covering
+    /// forty references should not print forty lines. The graphs hold them all
+    /// for anything that wants the full set.
+    static let evidenceLimit = 5
 }
 
 extension Array where Element == Diagnostic {

@@ -121,7 +121,7 @@ flowchart TD
 | ➕ | `keel add feature` | Generate a feature into an existing project | ✅ Working |
 | 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
 | 🔍 | `keel inspect` | Report targets, schemes, dependencies, relationships, architecture | ✅ Working |
-| ✅ | `keel check` | Validate a project against its architecture rules | ✅ Working |
+| ✅ | `keel check` | Validate a project against its real architecture boundaries | ✅ Working |
 | 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
 
@@ -563,10 +563,30 @@ paragraph failed would be a poor trade.
 ### Validating and diagnosing
 
 ```bash
-keel check            # findings, exits non-zero on errors
-keel check --strict   # warnings fail too, for CI
+keel check                # findings, exits non-zero on errors
+keel check --strict       # warnings fail too, for CI
+keel check --explain      # why each finding exists, and why it has that severity
+keel check --interactive  # walk the findings one at a time
 keel check --json
-keel doctor           # can this machine build what Keel generates?
+keel doctor               # can this machine build what Keel generates?
+```
+
+`check` validates real architecture boundaries, not just declarations. It reads
+the same relationship graphs `inspect` does, so it can report a screen holding
+a networking client, a feature cycle, shared code depending on a feature, or a
+layer pointing back outwards — each with the lines it was read from:
+
+```text
+✗ Probe/Features/Articles/Presentation/StoredItemView.swift:4 —
+  StoredItemView refers to a persistence type, StoredItem, directly.
+  Evidence:
+    Probe/Features/Articles/Presentation/StoredItemView.swift:5  property: StoredItem
+
+! Articles → Settings → Articles is a dependency cycle.
+  Path: Articles → Settings → Articles
+  Evidence:
+    …/ArticleListViewModel.swift:13  Articles → Settings: ArticleListViewModel → SettingsViewModel
+    …/SettingsViewModel.swift:13     Settings → Articles: SettingsViewModel → Article
 ```
 
 `check` separates what it is *sure* of from what it *suspects*, and the split is
@@ -574,12 +594,26 @@ the point:
 
 | | |
 |---|---|
-| **error** | Structural, with a definite consequence. A `@Model` type in a file that does not import SwiftData; a scheme under `xcuserdata` that CI cannot see. |
+| **error** | Structural, with a definite consequence. A `@Model` type in a file that does not import SwiftData; a scheme under `xcuserdata` that CI cannot see; a SwiftUI `View` holding an `@Model` type — where both ends are attributes and conformances, not names. |
 | **warning** | Rests on a naming convention, or on something syntax cannot fully see. A `*ViewModel` that is not `@MainActor` — which may inherit isolation Keel cannot follow, and the finding says so. |
 
-Only errors fail the command by default. A checker that failed builds over a
-naming convention would be turned off within a week, so a convention never gets
-to be an error.
+**Severity is derived from the evidence, not fixed per rule.** The same rule
+produces an error when both ends of a relationship are established by the code
+and a warning the moment a name is load-bearing: `ProfileView` holding a
+`@Model` type is certain, `ProfileView` holding an `ArticleRepository` rests on
+a suffix. Only errors fail the command by default. A checker that failed builds
+over a naming convention would be turned off within a week, so a convention
+never gets to be an error.
+
+That is also why a **feature cycle is a warning**. A cycle needs no rule to be
+wrong, but what counts as a feature comes from folder names — so the grouping
+is conventional even though the references are not.
+
+`--explain` prints why each rule exists and why the finding carries the
+severity it does. `--interactive` walks the findings one at a time, offering
+evidence, the dependency path, and the rule's rationale; it changes nothing
+about the exit code, and falls through to the plain report when there is no
+terminal, so a stray flag in CI never waits for somebody who is not there.
 
 Keel's own generated projects pass every rule, and a test asserts it — shipping a
 generator whose output fails its own checker would make the checker impossible
@@ -633,7 +667,7 @@ keel doctor                    # can this machine even build it?
 keel inspect                   # targets, structure, and the architecture it implies
 keel inspect --relationships   # what is made of what
 keel inspect --graph           # what depends on what, and any cycles
-keel check                     # what is already wrong with it
+keel check --explain           # what is already wrong with it, and why that is a rule
 keel document                  # PROJECT.md, to read on the train
 ```
 
@@ -682,7 +716,8 @@ Neither touches the network, needs an account, or invokes an agent.
 | ✅ | Type relationship graph | done |
 | ✅ | Unified dependency graph | done |
 | ✅ | Relationship-aware architecture | done |
-| ⏳ | `keel check` against real boundaries | next |
+| ✅ | `keel check` against real boundaries | done |
+| ⏳ | Canonical evidence model | next |
 | ⏳ | Interactive architecture explorer | planned |
 
 </details>

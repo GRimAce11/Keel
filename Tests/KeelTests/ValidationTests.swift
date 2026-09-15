@@ -251,6 +251,265 @@ struct ProjectCheckerTests {
         }
     }
 
+    // MARK: - Relationship rules
+
+    @Test("A screen holding a stored model directly is an error, because both ends are certain")
+    func viewReachingPersistenceIsAnError() throws {
+        // The one case in this phase that earns an error: @Model is an
+        // attribute and View is a conformance, so neither end is a guess about
+        // what somebody called something.
+        let found = try diagnostics { root in
+            try write(
+                """
+                import SwiftUI
+                import SwiftData
+
+                struct StoredItemView: View {
+                    let item: StoredItem
+                    var body: some View { Text("x") }
+                }
+                """,
+                to: "Probe/Features/Articles/Presentation/StoredItemView.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "view-reaches-persistence" })
+        #expect(diagnostic.severity == .error)
+        #expect(diagnostic.message.contains("StoredItemView"))
+        #expect(diagnostic.evidence.contains { $0.statement.contains("StoredItem") })
+    }
+
+    @Test("A screen holding something only named like a client is a warning, not an error")
+    func viewReachingNetworkingIsAWarningWhenNamingIsLoadBearing() throws {
+        // `APIClient` is a client because of its suffix. The relationship is
+        // certain; what the type is for is not, so this cannot fail a build.
+        let found = try diagnostics { root in
+            try write(
+                """
+                import SwiftUI
+
+                struct FeedScreen: View {
+                    let client: APIClient
+                    var body: some View { Text("x") }
+                }
+                """,
+                to: "Probe/Features/Articles/Presentation/FeedScreen.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "view-reaches-networking" })
+        #expect(diagnostic.severity == .warning)
+        #expect(diagnostic.evidence.first?.location.contains("FeedScreen.swift") == true)
+    }
+
+    @Test("A screen building something the project injects elsewhere is reported")
+    func viewConstructingInfrastructure() throws {
+        let found = try diagnostics { root in
+            try write(
+                """
+                import SwiftUI
+
+                struct RogueScreen: View {
+                    private let repository = ArticleRepository(client: APIClient())
+                    var body: some View { Text("x") }
+                }
+                """,
+                to: "Probe/Features/Articles/Presentation/RogueScreen.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "view-constructs-infrastructure" })
+        #expect(diagnostic.message.contains("RogueScreen"))
+        #expect(!diagnostic.evidence.isEmpty)
+    }
+
+    @Test("Depending on a concrete repository rather than its protocol is reported")
+    func concreteRepositoryDependency() throws {
+        let found = try diagnostics { root in
+            try write(
+                """
+                import Foundation
+
+                struct ArticleExporter {
+                    let repository: ArticleRepository
+                }
+                """,
+                to: "Probe/Features/Articles/Domain/ArticleExporter.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "concrete-repository-dependency" })
+        #expect(diagnostic.severity == .warning)
+        #expect(diagnostic.message.contains("ArticleExporter"))
+    }
+
+    @Test("The composition root is exempt: knowing the concrete types is its job")
+    func compositionRootMayKnowConcreteTypes() throws {
+        // AppContainer constructs ArticleRepository in every generated project,
+        // so if this exemption were missing the baseline would already fail.
+        let found = try diagnostics()
+
+        #expect(!found.contains {
+            $0.rule == "concrete-repository-dependency" && $0.message.contains("AppContainer")
+        })
+    }
+
+    @Test("Shared code depending on a feature is reported, with a path")
+    func sharedCodeDependingOnAFeature() throws {
+        let found = try diagnostics { root in
+            try write(
+                """
+                import Foundation
+
+                enum Telemetry {
+                    static var lastArticle: Article?
+                }
+                """,
+                to: "Probe/Core/Telemetry.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "shared-code-depends-on-feature" })
+        #expect(diagnostic.severity == .warning)
+        #expect(diagnostic.path == ["Core", "Articles"])
+        #expect(!diagnostic.evidence.isEmpty)
+    }
+
+    @Test("A cycle between features is reported with the loop as its path")
+    func featureCycle() throws {
+        // The relationship no import can show: both features compile into the
+        // same module, so nothing crosses between them at the import level.
+        let found = try diagnostics { root in
+            try write(
+                """
+                import Foundation
+
+                struct SettingsState {
+                    var lastArticle: Article?
+                }
+                """,
+                to: "Probe/Features/Settings/SettingsState.swift",
+                in: root
+            )
+            try write(
+                """
+                import Foundation
+
+                struct ArticleSettingsBridge {
+                    var settings: SettingsState?
+                }
+                """,
+                to: "Probe/Features/Articles/Domain/ArticleSettingsBridge.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "feature-dependency-cycle" })
+        #expect(diagnostic.severity == .warning)
+        #expect(Set(diagnostic.path ?? []) == ["Articles", "Settings"])
+    }
+
+    @Test("A layer pointing back outwards is reported")
+    func layerInversion() throws {
+        let found = try diagnostics { root in
+            try write(
+                """
+                import Foundation
+
+                struct ArticlePresenterHandle {
+                    var view: ArticleListView?
+                }
+                """,
+                to: "Probe/Features/Articles/Domain/ArticlePresenterHandle.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "layer-inversion" })
+        #expect(diagnostic.severity == .warning)
+        #expect(diagnostic.message.contains("Domain"))
+    }
+
+    @Test("A view model observing against the project's own convention is reported")
+    func inconsistentObservation() throws {
+        // The generated project is @Observable throughout, so an
+        // ObservableObject view model departs from a convention it established.
+        let found = try diagnostics { root in
+            try write(
+                """
+                import Foundation
+                import Combine
+
+                @MainActor
+                final class LegacyViewModel: ObservableObject {
+                    @Published var title = ""
+                }
+                """,
+                to: "Probe/Features/Articles/Presentation/LegacyViewModel.swift",
+                in: root
+            )
+        }
+
+        let diagnostic = try #require(found.first { $0.rule == "view-model-observation-inconsistent" })
+        #expect(diagnostic.severity == .warning)
+        #expect(diagnostic.message.contains("LegacyViewModel"))
+    }
+
+    // MARK: - The severity contract
+
+    @Test("Every rule the checker can emit is in the catalogue")
+    func everyRuleIsExplained() throws {
+        // `--explain` reads from the catalogue, so a rule missing from it would
+        // fire with no explanation and no severity policy.
+        let emitted = Set(try relationshipDiagnostics().map(\.rule))
+            .union(try diagnostics(components: []).map(\.rule))
+        let catalogued = Set(CheckRules.all.map(\.id))
+
+        #expect(emitted.subtracting(catalogued).isEmpty,
+                "not in CheckRules: \(emitted.subtracting(catalogued).sorted())")
+    }
+
+    @Test("Nothing resting on a name is allowed to be an error")
+    func namingNeverFailsABuild() throws {
+        // The whole credibility of the command. A finding where any leg is a
+        // naming convention is a warning, whatever the rule thinks.
+        for diagnostic in try relationshipDiagnostics() where diagnostic.severity == .error {
+            let rule = try #require(CheckRules.rule(diagnostic.rule))
+            #expect(rule.severityPolicy.contains("Error"),
+                    "\(diagnostic.rule) produced an error but its policy does not allow one")
+        }
+    }
+
+    /// A project damaged in several ways at once, for the contract tests.
+    private func relationshipDiagnostics() throws -> [Diagnostic] {
+        try diagnostics { root in
+            try write(
+                """
+                import SwiftUI
+                import SwiftData
+
+                struct StoredItemView: View {
+                    let item: StoredItem
+                    let client: APIClient
+                    var body: some View { Text("x") }
+                }
+                """,
+                to: "Probe/Features/Articles/Presentation/StoredItemView.swift",
+                in: root
+            )
+            try write(
+                "import Foundation\n\nenum Telemetry { static var a: Article? }\n",
+                to: "Probe/Core/Telemetry.swift",
+                in: root
+            )
+        }
+    }
+
     @Test("Findings are ordered errors first, then stably")
     func ordersFindings() {
         let unordered = [

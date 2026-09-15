@@ -136,4 +136,16 @@ struct InterviewTests {
         // Nothing was requested, so nothing needed dropping.
         #expect(configuration.adjustments.isEmpty)
     }
+    @Test("A question with several answers takes its default when nobody is asking")
+    func choiceFallsBackToItsDefault() {
+        // `keel check --interactive` piped into a log has nobody to answer.
+        // Blocking on readLine there would hang a build rather than fail it.
+        let answers = ScriptedAnswers()
+
+        #expect(answers.choice("What next?", options: ["Continue", "Explain"], default: 0) == 0)
+        #expect(answers.choice("What next?", options: ["Continue", "Explain"], default: 1) == 1)
+        #expect(DefaultAnswers().choice("What next?", options: ["a", "b", "c"], default: 2) == 2)
+    }
+
+
 }
