@@ -1,4 +1,11 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.0
+//
+// 6.0 rather than 6.1, deliberately. The manifest uses nothing 6.1 added, and
+// the tools version sets the floor on who can build Keel at all: 6.1 means
+// Xcode 16.3, which cannot be installed before macOS 15. Anyone on Sonoma
+// following the install instructions got "Xcode 16.3 cannot be installed on
+// macOS 14" instead of a working binary. 6.0 means Xcode 16.0 and still
+// defaults to the Swift 6 language mode, so nothing is given up for it.
 import PackageDescription
 
 let package = Package(
