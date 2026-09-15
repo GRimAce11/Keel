@@ -90,6 +90,35 @@ public struct ProjectModel: Codable, Sendable, Equatable {
         )).build()
     }
 
+    /// Every name this project actually contains.
+    ///
+    /// What an agent's interpretation is checked against. An agent given facts
+    /// and asked to interpret them has stopped interpreting the moment it names
+    /// a `PaymentService` that does not exist — and the invented name is
+    /// exactly what a reader would go looking for. This is the vocabulary such
+    /// a claim has to be drawn from.
+    ///
+    /// Declared types are included under both their qualified and simple names,
+    /// since a sentence would say `StorageKey` where the model says
+    /// `AuthManager.StorageKey`.
+    public var vocabulary: Set<String> {
+        var names: Set<String> = []
+
+        for type in analysis.declaredTypes {
+            names.insert(type.name)
+            names.insert(TypeName.simple(of: type.name))
+        }
+        names.formUnion(features.map(\.name))
+        names.formUnion(modules.map(\.name))
+        names.formUnion(allTargets.map(\.name))
+        names.formUnion(dependencies.map(\.name))
+        names.formUnion(importGraph.edges.map(\.module))
+        names.formUnion(schemes.map(\.name))
+        names.insert(name)
+
+        return names
+    }
+
     public var allTargets: [Target] {
         projects.flatMap(\.targets)
     }

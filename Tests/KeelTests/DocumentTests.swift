@@ -328,9 +328,14 @@ struct AIDocumentationTests {
         #expect(prompt.contains("undetermined"))
         // Data, not prose to paste: Keel owns the Markdown.
         #expect(prompt.contains("single JSON object"))
-        for field in ["overview", "dataFlow", "conventions", "risks", "onboarding"] {
+        for field in ["overview", "dependencyFlow", "conventions", "boundaries",
+                      "inconsistencies", "risks", "readingOrder", "legacyAreas", "questions"] {
             #expect(prompt.contains("\"\(field)\""), "prompt does not ask for \(field)")
         }
+        // Interpretation and advice are asked for separately, so the agent is
+        // never in a position to present one as the other.
+        #expect(prompt.contains("Keep interpretation and advice apart"))
+        #expect(prompt.contains("Only name types, features and folders that appear"))
     }
 
     @Test("Undetermined findings reach the prompt marked as undetermined")
@@ -353,9 +358,10 @@ struct AIDocumentationTests {
 
         #expect(markdown.contains(ProjectDocument.overviewStart))
         #expect(markdown.contains(ProjectDocument.overviewEnd))
-        #expect(markdown.contains("Interpretation from Claude Code"))
+        #expect(markdown.contains("Written by Claude Code"))
         // Unattributed prose in a file of measured facts reads as another fact.
-        #expect(markdown.contains("Keel checked its shape, not its claims"))
+        #expect(markdown.contains("it was not shown the source"))
+        #expect(markdown.contains("not that its reasoning is right"))
         #expect(markdown.contains("A small application."))
     }
 
@@ -364,20 +370,27 @@ struct AIDocumentationTests {
         let interpretation = ProjectDocument.Interpretation(
             fields: ProjectInterpretation(
                 overview: "Overview.",
-                dataFlow: "Flow.",
+                dependencyFlow: "Flow.",
                 conventions: ["One convention."],
                 risks: ["One risk."],
-                onboarding: ["Start here."]
+                readingOrder: ["Start here."]
             ),
             agentName: "Agent"
         )
         let markdown = try ProjectDocument(model: model(), interpretation: interpretation).markdown()
 
         // The agent supplies field values; every heading around them is Keel's.
-        for heading in ["### Data flow", "### Conventions noticed",
-                        "### Worth being careful about", "### Where to start"] {
+        for heading in ["### What this adds up to", "### How the dependencies run",
+                        "### Conventions it appears to follow",
+                        "### Worth being careful about", "### Where to start reading"] {
             #expect(markdown.contains(heading), "missing \(heading)")
         }
+
+        // And every group says what kind of claim it is. "Consider exposing
+        // authentication behind an abstraction" and "authentication is exposed
+        // behind an abstraction" are one word apart in a skim.
+        #expect(markdown.contains("*Inferred from the findings above — not measured.*"))
+        #expect(markdown.contains("*Suggested — not a rule this project follows.*"))
     }
 
     @Test("An interpretation adds a section and changes nothing else")
@@ -502,10 +515,12 @@ struct ProjectInterpretationTests {
             """)
 
         #expect(parsed.overview == "A small app.")
-        #expect(parsed.dataFlow == "View to view model.")
+        // `dataFlow` and `onboarding` are the older key names, still accepted:
+        // refusing a usable answer over the spelling of a key is pedantry.
+        #expect(parsed.dependencyFlow == "View to view model.")
         #expect(parsed.conventions == ["One."])
         #expect(parsed.risks == ["Two."])
-        #expect(parsed.onboarding == ["Three."])
+        #expect(parsed.readingOrder == ["Three."])
     }
 
     @Test("A fenced reply with preamble still parses")
@@ -591,7 +606,8 @@ struct ProjectInterpretationTests {
     @Test("Fields round-trip through Codable")
     func isCodable() throws {
         let original = ProjectInterpretation(
-            overview: "A.", dataFlow: "B.", conventions: ["C."], risks: ["D."], onboarding: ["E."]
+            overview: "A.", dependencyFlow: "B.", conventions: ["C."],
+            risks: ["D."], readingOrder: ["E."]
         )
         let data = try JSONEncoder().encode(original)
         #expect(try JSONDecoder().decode(ProjectInterpretation.self, from: data) == original)

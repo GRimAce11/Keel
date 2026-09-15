@@ -234,11 +234,27 @@ struct Document: ParsableCommand {
             return nil
         }
 
-        // Keel validates the shape before anything reaches the document. An
-        // agent that ignored the format costs its section, not the file.
+        // Keel validates the shape before anything reaches the document, then
+        // checks that every type-shaped name in it is one the project actually
+        // contains. An agent that ignored the format costs its section; one
+        // that invented a type loses the sentence it invented it in.
         do {
-            let fields = try ProjectInterpretation.parse(reply)
-            return ProjectDocument.Interpretation(fields: fields, agentName: name)
+            let parsed = try ProjectInterpretation.parse(reply)
+            let verified = parsed.verified(against: model.vocabulary)
+
+            let dropped = parsed.itemCount - verified.itemCount
+            if dropped > 0 {
+                console.warn(
+                    "Dropped \(dropped) \(dropped == 1 ? "statement" : "statements") "
+                    + "naming something this project does not contain."
+                )
+            }
+            guard !verified.isEmpty else {
+                console.warn("No interpretation: nothing in the reply survived checking.")
+                console.detail("The rest of the document is unaffected.")
+                return nil
+            }
+            return ProjectDocument.Interpretation(fields: verified, agentName: name)
         } catch let error as ProjectInterpretation.ParseError {
             console.warn("No interpretation: \(error.description)")
             console.detail("The rest of the document is unaffected.")

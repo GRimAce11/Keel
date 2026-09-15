@@ -37,21 +37,42 @@ public struct DocumentationPrompt {
         the facts rather than padding it:
 
         {
-          "overview":    "Two or three sentences on what this project is and how it is put together.",
-          "dataFlow":    "One or two sentences on how a request moves through the app.",
-          "conventions": ["A convention the facts show this project follows."],
-          "risks":       ["Something a new contributor should be careful about."],
-          "onboarding":  ["Where to start reading, and why."]
+          "overview":        "Two or three sentences on what this project is and how it is put together.",
+          "dependencyFlow":  "One or two sentences on how a request moves through the app, from the dependencies below.",
+          "conventions":     ["A convention the facts show this project follows."],
+          "boundaries":      ["A boundary the project keeps that is worth keeping."],
+          "inconsistencies": ["Somewhere the facts below disagree with each other."],
+          "risks":           ["Something a new contributor should be careful about."],
+          "readingOrder":    ["Where to start reading, and why."],
+          "legacyAreas":     ["Something that looks older than the rest, and what suggests it."],
+          "questions":       ["Something a developer should go and find out."]
         }
 
         Plain sentences only. No Markdown, no headings, no bullet characters — \
         the formatting is not yours to choose.
+
+        Two rules about what you may say.
+
+        Only name types, features and folders that appear in the facts below. \
+        A name that is not there will be dropped, and the sentence with it.
+
+        Keep interpretation and advice apart. `overview`, `dependencyFlow`, \
+        `conventions`, `boundaries` and `inconsistencies` are for what the \
+        facts show. `risks`, `readingOrder`, `legacyAreas` and `questions` are \
+        for what you would suggest. Do not phrase a suggestion as something \
+        the project already does — it will be published under a heading that \
+        says it is advice.
 
         FACTS
 
         \(facts())
         """
     }
+
+    /// How many edges of one kind to send. A prompt listing every reference in
+    /// a large project would be mostly noise, and the agent is being asked for
+    /// a reading rather than a recount.
+    private static let edgeLimit = 25
 
     // MARK: - Facts
 
@@ -75,10 +96,17 @@ public struct DocumentationPrompt {
         lines.append("")
         lines.append("Architecture, with what each conclusion rests on:")
         for finding in model.architecture.findings {
-            let basis = finding.support == .undetermined ? "undetermined" : finding.support.displayName
+            let basis = finding.support == .undetermined ? "undetermined" : finding.sourceSummary
             lines.append("- \(finding.dimension): \(finding.value) (\(basis))")
             for item in finding.evidence {
-                lines.append("    \(item)")
+                // The statement and how it was established. The stance matters:
+                // an agent told only the statements would read a reason to
+                // doubt a verdict as a reason to believe it.
+                let stance = item.stance == .supporting ? "" : " [\(item.stance.rawValue)]"
+                lines.append("    \(item.statement) (\(item.basis.displayName))\(stance)")
+                if !item.locations.isEmpty {
+                    lines.append("      at \(item.locations.joined(separator: ", "))")
+                }
             }
         }
 
@@ -127,6 +155,80 @@ public struct DocumentationPrompt {
             lines.append("Tests: " + model.testTargets.map(\.name).joined(separator: ", "))
         }
 
+        lines += relationshipFacts()
         return lines.joined(separator: "\n")
+    }
+
+    /// What the project is made of, and what depends on what.
+    ///
+    /// The facts this phase exists to send. Without them an agent can only
+    /// paraphrase a table it was already given; with them it can say that the
+    /// Profile feature reaches Authentication and nothing reaches back.
+    ///
+    /// Still facts, and still not source: every line here was derived by
+    /// parsing files the agent never sees, and every one of them already
+    /// appears in `keel inspect`.
+    private func relationshipFacts() -> [String] {
+        var lines: [String] = []
+        let graph = model.typeGraph
+        let dependencies = model.dependencyGraph()
+
+        let roles = graph.roleCounts()
+        if !roles.isEmpty {
+            lines.append("")
+            lines.append("What the types are for, by role: " + roles
+                .map { "\($0.role.displayName) (\($0.count))" }
+                .joined(separator: ", "))
+            lines.append(
+                "Roles marked in the architecture section as coming from naming were "
+                + "read from a type-name suffix, not from the code."
+            )
+        }
+
+        for scope in [DependencyScope.feature, .module, .layer] {
+            let edges = dependencies.edges(at: scope)
+            guard !edges.isEmpty else { continue }
+            lines.append("")
+            lines.append("\(scope.displayName) dependencies:")
+            for edge in edges.prefix(Self.edgeLimit) {
+                lines.append(
+                    "- \(edge.from) → \(edge.to) "
+                    + "(\(Prose.count(edge.evidence.count, "reference")), "
+                    + "first at \(edge.evidence[0].location))"
+                )
+            }
+            if edges.count > Self.edgeLimit {
+                lines.append("- and \(edges.count - Self.edgeLimit) more")
+            }
+        }
+
+        for scope in DependencyScope.structural {
+            for cycle in dependencies.cycles(at: scope) {
+                lines.append("")
+                lines.append(
+                    "Cycle at \(scope.displayName.lowercased()) scope: "
+                    + cycle.joined(separator: " → ")
+                )
+            }
+        }
+
+        let findings = graph.findings
+        if !findings.isEmpty {
+            lines.append("")
+            lines.append("Relationships Keel flagged as worth a look:")
+            for finding in findings.prefix(Self.edgeLimit) {
+                lines.append(
+                    "- \(finding.headline): \(finding.rule.summary) "
+                    + "(\(finding.support.displayName))"
+                )
+            }
+        }
+
+        if graph.isEmpty {
+            lines.append("")
+            lines.append("No type relationships were found, so nothing can be said about them.")
+        }
+
+        return lines
     }
 }

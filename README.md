@@ -544,24 +544,41 @@ keel document --ai            # add an overview written by your agent
 ```
 
 **The agent returns data; Keel writes the Markdown.** It fills named fields —
-overview, data flow, conventions, risks, where to start — and Keel renders every
-heading around them. That ordering is the point: if the agent authored the
-document, every guarantee about structure and attribution would hold only as
-long as it followed instructions. Replies are validated before anything is
-rendered, so Markdown an agent injects into a field is stripped rather than
-opening a section that looks measured.
+overview, dependency flow, conventions, boundaries, inconsistencies, risks,
+reading order, legacy areas, questions — and Keel renders every heading around
+them. That ordering is the point: if the agent authored the document, every
+guarantee about structure and attribution would hold only as long as it
+followed instructions. Markdown an agent injects into a field is stripped
+rather than opening a section that looks measured.
+
+**Observed, inferred and suggested stay apart, and the agent does not get to
+choose which is which.** Keel measured the rest of the document; the agent's
+reading of it is labelled *inferred*, and its advice is labelled *suggested —
+not a rule this project follows*. There is no field an agent can fill that
+comes out labelled as observed. "Consider exposing authentication behind an
+abstraction" and "authentication is exposed behind an abstraction" are one word
+apart in a skim, and only one of them is true of your project.
+
+**A claim naming something that does not exist is dropped.** Every CamelCase
+name in a reply is checked against the project's own vocabulary — its types,
+features, modules, targets and imports. An agent that invents a
+`PaymentGateway` loses the sentence it invented it in, and the rest of the
+reply survives; an invented name is exactly what a reader would go looking for.
 
 Everything else in `PROJECT.md` is byte-for-byte what it would be without the
-flag — the interpretation lives inside its own fence, is attributed, and says
-Keel checked its shape and not its claims.
+flag — the interpretation lives inside its own fence and is attributed.
 
-**Keel sends the facts, not your code.** The prompt contains the same derived
-findings the document already prints: counts, conformances, folder names,
-evidence. No source ever leaves the machine, and `--show-prompt` shows you the
-whole thing before you commit to sending it.
+**Keel sends the facts, not your code.** Since v1.1.0 that includes the
+relationship facts: what depends on what at feature, module and layer scope,
+any cycles, the roles types appear to fill, and the evidence behind each
+architecture finding with the lines it came from. All of it was derived by
+parsing files the agent never sees, and all of it already appears in
+`keel inspect`. `--show-prompt` shows you the whole thing before you commit to
+sending it.
 
 If the agent fails — no quota, no network, wrong flags — you get the document
-anyway, with a warning and no overview. Losing a report because a bonus
+anyway, with a warning and no interpretation. Same if its reply is malformed,
+or if nothing in it survives checking. Losing a report because a bonus
 paragraph failed would be a poor trade.
 
 ### Validating and diagnosing
@@ -721,8 +738,9 @@ Neither touches the network, needs an account, or invokes an agent.
 | ✅ | Unified dependency graph | done |
 | ✅ | Relationship-aware architecture | done |
 | ✅ | `keel check` against real boundaries | done |
-| ⏳ | Canonical evidence model | next |
-| ⏳ | Interactive architecture explorer | planned |
+| ✅ | Canonical evidence model | done |
+| ✅ | AI interprets relationships | done |
+| ⏳ | Interactive architecture explorer | next |
 
 </details>
 

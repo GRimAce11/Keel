@@ -311,6 +311,8 @@ public struct TypeGraph: Codable, Sendable, Equatable {
 
     public static let empty = TypeGraph(nodes: [], references: [], findings: [])
 
+    public var isEmpty: Bool { nodes.isEmpty && references.isEmpty }
+
     public init(nodes: [TypeNode], references: [TypeReference], findings: [RelationshipFinding]) {
         self.nodes = nodes
         self.references = references

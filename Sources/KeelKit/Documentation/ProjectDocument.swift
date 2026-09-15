@@ -99,32 +99,68 @@ public struct ProjectDocument {
         let fields = interpretation.fields
         var parts: [String] = [
             Self.overviewStart,
-            "## Overview",
+            "## Interpretation",
             """
             > [!NOTE]
-            > Interpretation from \(interpretation.agentName), based on the facts in \
-            this document. Keel checked its shape, not its claims. Every other section \
-            is derived by static analysis.
+            > Written by \(interpretation.agentName) from the facts in this document — \
+            it was not shown the source. Keel checked its shape and that every type it \
+            names exists, not that its reasoning is right. Nothing here changed a \
+            finding above.
             """,
         ]
 
         // Keel writes these headings, so the agent cannot open a section that
-        // looks like one Keel measured.
-        if let overview = fields.overview { parts.append(overview) }
-        if let dataFlow = fields.dataFlow {
-            parts.append("### Data flow\n\n\(dataFlow)")
+        // looks like one Keel measured. And each group is labelled with what
+        // kind of claim it is: a reading of the evidence, or advice about it.
+        if let overview = fields.overview {
+            parts.append("### What this adds up to")
+            parts.append(standing(.inferred))
+            parts.append(escaped(overview))
         }
-        parts += list("Conventions noticed", fields.conventions)
-        parts += list("Worth being careful about", fields.risks)
-        parts += list("Where to start", fields.onboarding)
+        if let flow = fields.dependencyFlow {
+            parts.append("### How the dependencies run")
+            parts.append(standing(.inferred))
+            parts.append(escaped(flow))
+        }
+
+        parts += list("Conventions it appears to follow", fields.conventions, .inferred)
+        parts += list("Boundaries it appears to keep", fields.boundaries, .inferred)
+        parts += list("Where the facts disagree", fields.inconsistencies, .inferred)
+
+        parts += list("Worth being careful about", fields.risks, .suggested)
+        parts += list("Where to start reading", fields.readingOrder, .suggested)
+        parts += list("Possibly older than the rest", fields.legacyAreas, .suggested)
+        parts += list("Questions worth answering", fields.questions, .suggested)
 
         parts.append(Self.overviewEnd)
         return parts.joined(separator: "\n\n")
     }
 
-    private func list(_ heading: String, _ items: [String]) -> [String] {
+    /// Says what kind of claim the section below it is making.
+    ///
+    /// Printed rather than implied. "Consider exposing authentication behind an
+    /// abstraction" and "authentication is exposed behind an abstraction" are
+    /// one word apart in a skim, and only one of them is true of the project.
+    private func standing(_ standing: ProjectInterpretation.Standing) -> String {
+        switch standing {
+        case .inferred:
+            return "*Inferred from the findings above — not measured.*"
+        case .suggested:
+            return "*Suggested — not a rule this project follows.*"
+        }
+    }
+
+    private func list(
+        _ heading: String,
+        _ items: [String],
+        _ standing: ProjectInterpretation.Standing
+    ) -> [String] {
         guard !items.isEmpty else { return [] }
-        return ["### \(heading)\n\n" + items.map { "- \(escaped($0))" }.joined(separator: "\n")]
+        return [
+            "### \(heading)",
+            self.standing(standing),
+            items.map { "- \(escaped($0))" }.joined(separator: "\n"),
+        ]
     }
 
     // MARK: At a glance
