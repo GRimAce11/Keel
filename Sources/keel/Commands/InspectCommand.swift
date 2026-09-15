@@ -404,6 +404,9 @@ struct Inspect: ParsableCommand {
 
         console.heading("Architecture")
         console.detail(architecture.summary)
+        for line in architecture.flowSummary {
+            console.detail(line)
+        }
         // Worth saying, because these counts are deliberately smaller than the
         // ones above: a test double imitates production code on purpose.
         console.detail("Counted from the app's own source; test targets are left out.")
@@ -416,19 +419,23 @@ struct Inspect: ParsableCommand {
         for finding in findings {
             let label = finding.dimension.padding(toLength: labelWidth, withPad: " ", startingAt: 0)
             // An undetermined finding already says so in its value; repeating
-            // it in the support column would be noise.
-            let support = finding.support == .undetermined
-                ? ""
-                : "  \(finding.support.displayName)"
+            // it in the basis column would be noise.
+            let basis = finding.support == .undetermined ? "" : "  \(finding.sourceSummary)"
             let value = finding.value.padding(
-                toLength: support.isEmpty ? finding.value.count : valueWidth,
+                toLength: basis.isEmpty ? finding.value.count : valueWidth,
                 withPad: " ",
                 startingAt: 0
             )
-            console.detail("\(label)  \(value)\(support)")
+            console.detail("\(label)  \(value)\(basis)")
 
-            for line in finding.evidence {
-                console.detail("\(indent)\(line)")
+            for item in finding.evidence {
+                console.detail("\(indent)\(item.statement)")
+                // Locations only for the relationship evidence. A declaration
+                // count is checkable by re-reading the project; "this view
+                // holds that repository" is only checkable if it says where.
+                if item.basis == .structuralRelationship, !item.locations.isEmpty {
+                    console.detail("\(indent)  \(item.locations.joined(separator: "  "))")
+                }
             }
         }
     }

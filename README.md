@@ -258,24 +258,50 @@ network, no AI. It works on a project that does not currently compile, which is
 often exactly when you need to understand it.
 
 The last section names the architecture — MVVM or not, feature-based or
-layered, `@Observable` or `ObservableObject`, where dependencies come from —
-and shows the counts behind each conclusion. Every finding also says whether it
-came from the code or from what someone named a folder, because those are not
-the same claim:
+layered, what the screens actually hold, which way dependencies run — and shows
+what each conclusion rests on. Every finding says which of **three** kinds of
+evidence got it there, because they are not the same claim:
 
 ```
 Architecture
-  SwiftUI MVVM, organised by feature, wired through a composition root,
-  built on @Observable, async/await and SwiftData.
-  Counted from the app's own source; test targets are left out.
+  SwiftUI MVVM, screens fed both ways, organised by feature, wired through a
+  composition root, built on @Observable, async/await and SwiftData.
+  Some screens go through view models and some reach the data layer directly.
+  Dependencies run from features towards shared code.
 
-  Presentation    MVVM              from the code
-                  6 SwiftUI views declared.
-                  2 types named with a ViewModel suffix.
-                  2 of those are @Observable or an ObservableObject.
-  Organisation    Feature-based     from naming
-                  1 feature folder found.
+  Presentation      MVVM                   from relationships
+                    6 SwiftUI views declared.
+                    2 types named with a ViewModel suffix.
+                    2 of those are @Observable or an ObservableObject.
+                    2 views refer to one, in 4 places.
+                      Probe/Features/Articles/Presentation/ArticleListView.swift:10 …
+  Screen data       Mixed                  from relationships
+                    4 references from a view to a view model.
+                    3 references from a view straight to a repository or client.
+  Organisation      Feature-based          from naming
+                    1 feature folder found.
+  Layer boundaries  Respected              from relationships
+  Wiring            Composition root       from relationships
+                    AppContainer constructs 3 types that other types take as
+                    initializer parameters.
 ```
+
+`from relationships` outranks `from the code`, which outranks `from naming`.
+A type *called* `ArticleViewModel` is a naming habit; a type that is
+`@Observable` is a declaration; a view that actually *holds* one is a
+relationship — and only the last of those is evidence that the project is
+built the way the diagram says.
+
+The rule is mechanical rather than per-finding: **a conclusion resting only on
+names can never be reported as coming from the code**, whatever it concludes.
+Evidence that undercuts a verdict is printed and not counted as support, and
+evidence that merely sets the scene — how many views exist, when the question
+is where their state lives — is counted as neither.
+
+Nothing is inferred from a name where a relationship can answer instead. A
+composition root is a type that *builds* the app's services, not a type called
+`*Container`; a project can be full of view models and still have every view
+holding its own repository, and Keel reports that rather than the name.
 
 Where the evidence settles nothing, the answer is `Undetermined` rather than
 the likeliest guess.

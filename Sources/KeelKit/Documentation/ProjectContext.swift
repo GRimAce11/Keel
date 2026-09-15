@@ -41,9 +41,11 @@ public struct ProjectContext {
         default: break
         }
 
-        if case .compositionRoot = architecture.wiring.value,
-           let root = analysis.declaredTypes.first(where: { $0.name.hasSuffix("Container") }) {
-            rules.append("Dependencies are composed in `\(root.name)` and injected downwards.")
+        // The detector already worked out which type assembles the app, from
+        // what it constructs. Searching for a `*Container` again would miss a
+        // root called anything else and drop the rule without saying so.
+        if case .compositionRoot = architecture.wiring.value, let root = architecture.compositionRoot {
+            rules.append("Dependencies are composed in `\(root)` and injected downwards.")
         }
 
         let names = Set(analysis.declaredTypes.map(\.name))
@@ -173,7 +175,7 @@ public struct ProjectContext {
 
         first("App entry point") { $0.hasAttribute("main") || $0.name == "\(model.name)App" }
         first("First screen") { $0.name == "RootView" }
-        first("Composition root") { $0.name.hasSuffix("Container") }
+        first("Composition root") { $0.name == model.architecture.compositionRoot }
         first("Networking") { $0.name == "APIClient" }
         first("Screen state contract") { $0.name == "ViewState" }
 

@@ -68,8 +68,8 @@ struct ProjectDocumentTests {
 
         for finding in model.architecture.findings {
             #expect(markdown.contains(finding.dimension), "missing \(finding.dimension)")
-            for line in finding.evidence {
-                #expect(markdown.contains(line), "missing evidence: \(line)")
+            for item in finding.evidence {
+                #expect(markdown.contains(item.statement), "missing evidence: \(item.statement)")
             }
         }
     }
@@ -142,7 +142,8 @@ struct ProjectDocumentTests {
             importGraph: ImportGraph(edges: [], isSingleModule: true),
             typeGraph: .empty,
             architecture: ArchitectureDetector(
-                modules: [], features: [], analysis: SourceAnalysis(files: [])
+                modules: [], features: [], analysis: SourceAnalysis(files: []),
+                typeGraph: .empty, dependencies: .empty
             ).detect()
         )
 
@@ -175,7 +176,8 @@ struct ProjectDocumentTests {
             importGraph: ImportGraph(edges: [], isSingleModule: true),
             typeGraph: .empty,
             architecture: ArchitectureDetector(
-                modules: [], features: [], analysis: SourceAnalysis(files: [])
+                modules: [], features: [], analysis: SourceAnalysis(files: []),
+                typeGraph: .empty, dependencies: .empty
             ).detect()
         )
 
@@ -698,15 +700,13 @@ struct DocumentFingerprintTests {
             analysis: SourceAnalysis(files: []),
             importGraph: ImportGraph(edges: [], isSingleModule: true),
             typeGraph: .empty,
+            // Only the one dimension this test varies; the rest default to
+            // undetermined rather than being spelled out as unknown.
             architecture: Architecture(
-                presentation: Finding(value: value == "MVVM" ? .mvvm : .mvc,
-                                      support: .observed, evidence: []),
-                organisation: Finding(value: .unknown, support: .undetermined, evidence: []),
-                featureLayering: Finding(value: .unknown, support: .undetermined, evidence: []),
-                observation: Finding(value: .unknown, support: .undetermined, evidence: []),
-                concurrency: Finding(value: .unknown, support: .undetermined, evidence: []),
-                persistence: Finding(value: .unknown, support: .undetermined, evidence: []),
-                wiring: Finding(value: .unknown, support: .undetermined, evidence: [])
+                presentation: Finding(
+                    value: value == "MVVM" ? .mvvm : .mvc,
+                    evidence: [.init("Fixed by the test.", basis: .observedFact)]
+                )
             )
         )
     }

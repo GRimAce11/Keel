@@ -212,7 +212,7 @@ public struct ProjectChecker {
                 severity: .warning,
                 message: "Feature folders are not divided the same way as each other.",
                 location: nil,
-                detail: model.architecture.featureLayering.evidence.joined(separator: " ")
+                detail: model.architecture.featureLayering.evidence.map(\.statement).joined(separator: " ")
             )
         ]
     }

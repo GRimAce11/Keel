@@ -21,10 +21,31 @@ struct ArchitectureDetectorTests {
             .sorted { $0.key < $1.key }
             .map { analyzer.analyze(source: $0.value, path: $0.key) }
 
+        let analysis = SourceAnalysis(files: files)
+        let targets = [Target(
+            name: "App", productType: .application, bundleIdentifier: nil,
+            deploymentTarget: nil, swiftVersion: nil, platform: nil, strictConcurrency: nil
+        )]
+
+        // The real graphs, from the same sources. Detection now reads
+        // relationships, so a fixture that stubbed them would be asserting
+        // against something the detector never sees in a real project.
+        let typeGraph = TypeGraphBuilder(inputs: .init(
+            targets: targets, modules: modules, features: features, analysis: analysis
+        )).build()
+        let importGraph = ImportGraphBuilder(model: .init(
+            rootPath: "/tmp/App", targets: targets, modules: modules, features: features,
+            packages: [], packageProducts: [], analysis: analysis
+        )).build()
+
         return ArchitectureDetector(
             modules: modules,
             features: features,
-            analysis: SourceAnalysis(files: files)
+            analysis: analysis,
+            typeGraph: typeGraph,
+            dependencies: DependencyGraphBuilder(inputs: .init(
+                importGraph: importGraph, typeGraph: typeGraph, modules: modules
+            )).build()
         ).detect()
     }
 
@@ -74,7 +95,13 @@ struct ArchitectureDetectorTests {
 
         #expect(architecture.presentation.value == .mvvm)
         #expect(architecture.presentation.support == .conventional)
-        #expect(architecture.presentation.evidence.contains { $0.contains("only evidence") })
+        #expect(architecture.presentation.bases == [.namingConvention])
+
+        // Both reasons to doubt it are stated, and neither is counted as
+        // support for the verdict it undercuts.
+        let doubts = architecture.presentation.evidence.filter { $0.stance == .qualifying }
+        #expect(doubts.contains { $0.statement.contains("@Observable or an ObservableObject") })
+        #expect(doubts.contains { $0.statement.contains("No view refers to one") })
     }
 
     @Test("SwiftUI with no view model layer is not called MVVM")
@@ -139,7 +166,7 @@ struct ArchitectureDetectorTests {
         )
 
         #expect(architecture.organisation.value == .featureBased)
-        #expect(architecture.organisation.evidence.contains { $0.contains("1 feature folder") })
+        #expect(architecture.organisation.evidence.contains { $0.statement.contains("1 feature folder") })
     }
 
     @Test("Top-level layer folders make a project layered")
@@ -176,7 +203,7 @@ struct ArchitectureDetectorTests {
         )
 
         #expect(architecture.featureLayering.value == .layered)
-        #expect(architecture.featureLayering.evidence == [
+        #expect(architecture.featureLayering.evidence.map(\.statement) == [
             "All 2 features are divided into Data, Domain and Presentation."
         ])
     }
@@ -192,7 +219,7 @@ struct ArchitectureDetectorTests {
         )
 
         #expect(architecture.featureLayering.value == .inconsistent)
-        #expect(architecture.featureLayering.evidence.contains { $0.contains("Profile") })
+        #expect(architecture.featureLayering.evidence.contains { $0.statement.contains("Profile") })
     }
 
     @Test("Features divided into different layers are inconsistent too")
@@ -261,8 +288,8 @@ struct ArchitectureDetectorTests {
         let architecture = detect(["A.swift": "import Foundation\n@MainActor final class A {}\nactor B {}"])
 
         #expect(architecture.concurrency.value == .unknown)
-        #expect(architecture.concurrency.evidence.contains("1 actor declared."))
-        #expect(architecture.concurrency.evidence.contains("1 type isolated to @MainActor."))
+        #expect(architecture.concurrency.evidence.map(\.statement).contains("1 actor declared."))
+        #expect(architecture.concurrency.evidence.map(\.statement).contains("1 type isolated to @MainActor."))
     }
 
     // MARK: - Persistence
@@ -271,7 +298,7 @@ struct ArchitectureDetectorTests {
     func detectsPersistence() {
         let swiftData = detect(["A.swift": "import SwiftData\n@Model final class Item {}"])
         #expect(swiftData.persistence.value == .swiftData)
-        #expect(swiftData.persistence.evidence.contains("1 type marked @Model."))
+        #expect(swiftData.persistence.evidence.map(\.statement).contains("1 type marked @Model."))
 
         let coreData = detect(["A.swift": "import CoreData\nfinal class Item: NSManagedObject {}"])
         #expect(coreData.persistence.value == .coreData)
@@ -284,19 +311,75 @@ struct ArchitectureDetectorTests {
 
     // MARK: - Wiring
 
-    @Test("A container type is a composition root, on the strength of its name")
+    @Test("A type is a composition root because it builds the app, not because of its name")
     func detectsCompositionRoot() {
+        // The thing this phase was explicit about: a type called AppContainer
+        // that builds nothing is not a composition root, and a type called
+        // anything at all that builds the object graph is one.
+        let architecture = detect([
+            "Wiring.swift": """
+                import Foundation
+                protocol ArticleRepositoryProtocol {}
+                protocol APIClientProtocol {}
+                protocol KeychainServiceProtocol {}
+                struct ArticleRepository: ArticleRepositoryProtocol {}
+                struct APIClient: APIClientProtocol {}
+                struct KeychainService: KeychainServiceProtocol {}
+
+                final class AppState {
+                    let repository = ArticleRepository()
+                    let client = APIClient()
+                    let keychain = KeychainService()
+                }
+
+                struct ArticleListViewModel {
+                    init(repository: any ArticleRepositoryProtocol) {}
+                }
+                struct Loader {
+                    init(client: any APIClientProtocol) {}
+                }
+                struct Session {
+                    init(keychain: any KeychainServiceProtocol) {}
+                }
+                """,
+        ])
+
+        #expect(architecture.wiring.value == .compositionRoot)
+        #expect(architecture.wiring.support == .observed)
+        #expect(architecture.wiring.bases.first == .structuralRelationship)
+        #expect(architecture.wiring.evidence.contains { $0.statement.contains("AppState constructs") })
+    }
+
+    @Test("A type named like a container that builds nothing is not a composition root")
+    func refusesToReadWiringFromANameAlone() {
         let architecture = detect([
             "AppContainer.swift": "import Foundation\n@Observable final class AppContainer {}",
         ])
 
-        #expect(architecture.wiring.value == .compositionRoot)
-        #expect(architecture.wiring.support == .conventional)
-        #expect(architecture.wiring.evidence.first == "AppContainer declared in AppContainer.swift.")
+        #expect(architecture.wiring.value == .unknown)
     }
 
-    @Test("Conforming to a protocol the project declares is evidence from the code")
+    @Test("A protocol taken as an initializer parameter is a dependency boundary")
     func detectsProtocolBoundaries() {
+        let architecture = detect([
+            "Repository.swift": """
+                import Foundation
+                protocol ArticleRepositoryProtocol {}
+                struct ArticleRepository: ArticleRepositoryProtocol {}
+                struct ArticleListViewModel {
+                    init(repository: any ArticleRepositoryProtocol) {}
+                }
+                """,
+        ])
+
+        #expect(architecture.wiring.value == .protocolBoundaries)
+        #expect(architecture.wiring.support == .observed)
+    }
+
+    @Test("Declaring a protocol and conforming to it is not on its own a wiring decision")
+    func doesNotReadWiringFromConformanceAlone() {
+        // The protocol exists and something implements it. Nothing yet says
+        // any dependency travels through it.
         let architecture = detect([
             "Repository.swift": """
                 import Foundation
@@ -305,8 +388,7 @@ struct ArchitectureDetectorTests {
                 """,
         ])
 
-        #expect(architecture.wiring.value == .protocolBoundaries)
-        #expect(architecture.wiring.support == .observed)
+        #expect(architecture.wiring.value == .unknown)
     }
 
     @Test("Conforming to a protocol from elsewhere says nothing about wiring")

@@ -127,6 +127,37 @@ public struct ProjectScanner {
         let parsed = analyze(files: sourceScanner.swiftFiles(), relativeTo: projectRoot)
         let analysis = parsed.withoutReferences()
 
+        // Built here rather than inside the model so the detector can read
+        // them: architecture is now inferred from relationships, not only from
+        // declarations, and the graphs are what carry those.
+        let importGraph = ImportGraphBuilder(
+            model: .init(
+                rootPath: projectRoot.path,
+                targets: projects.flatMap(\.targets),
+                modules: modules,
+                features: features,
+                packages: uniquePackages,
+                packageProducts: packageProducts,
+                // Tests included here: "which files import XCTest" is a
+                // real question, and the graph records ownership so a
+                // caller can exclude them.
+                analysis: analysis
+            )
+        ).build()
+
+        let typeGraph = TypeGraphBuilder(
+            inputs: .init(
+                targets: projects.flatMap(\.targets),
+                modules: modules,
+                features: features,
+                // Production code only, for the same reason architecture
+                // detection reads production code only: a test double
+                // imitates the real thing, and counting one would let the
+                // test suite invent relationships the app does not have.
+                analysis: parsed.excludingTests()
+            )
+        ).build()
+
         return ProjectModel(
             name: name,
             rootPath: projectRoot.path,
@@ -139,39 +170,19 @@ public struct ProjectScanner {
             features: features,
             source: summary,
             analysis: analysis,
-            importGraph: ImportGraphBuilder(
-                model: .init(
-                    rootPath: projectRoot.path,
-                    targets: projects.flatMap(\.targets),
-                    modules: modules,
-                    features: features,
-                    packages: uniquePackages,
-                    packageProducts: packageProducts,
-                    // Tests included here: "which files import XCTest" is a
-                    // real question, and the graph records ownership so a
-                    // caller can exclude them.
-                    analysis: analysis
-                )
-            ).build(),
-            typeGraph: TypeGraphBuilder(
-                inputs: .init(
-                    targets: projects.flatMap(\.targets),
-                    modules: modules,
-                    features: features,
-                    // Production code only, for the same reason architecture
-                    // detection reads production code only: a test double
-                    // imitates the real thing, and counting one would let the
-                    // test suite invent relationships the app does not have.
-                    analysis: parsed.excludingTests()
-                )
-            ).build(),
+            importGraph: importGraph,
+            typeGraph: typeGraph,
             architecture: ArchitectureDetector(
                 modules: modules,
                 features: features,
                 // Detection reads production code only. A test double imitates
                 // the real thing on purpose, and counting one would let the
                 // test suite change the architecture Keel reports.
-                analysis: analysis.excludingTests()
+                analysis: analysis.excludingTests(),
+                typeGraph: typeGraph,
+                dependencies: DependencyGraphBuilder(inputs: .init(
+                    importGraph: importGraph, typeGraph: typeGraph, modules: modules
+                )).build()
             ).detect()
         )
     }

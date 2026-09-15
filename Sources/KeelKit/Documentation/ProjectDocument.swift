@@ -166,20 +166,22 @@ public struct ProjectDocument {
             [
                 finding.dimension,
                 finding.value,
-                finding.support == .undetermined ? "—" : finding.support.displayName,
+                finding.support == .undetermined ? "—" : finding.sourceSummary,
             ]
         }
 
-        // The basis column is the point: a type marked @Observable is a fact
-        // about the code, and a type named ArticleViewModel is a fact about
-        // what someone called it.
+        // The basis column is the point, and it now has three answers rather
+        // than two: a view *holding* a view model is a different claim from a
+        // type being *called* one, and both are different from an attribute
+        // the compiler would enforce.
         var section = """
             ## Architecture
 
             Inferred from the project's own files. The basis column says whether \
-            a finding came from the code itself or from a naming convention; \
-            where the evidence settles nothing, the finding says so rather than \
-            offering the likeliest answer.
+            a finding came from a relationship between types, from a declaration \
+            in the code, or only from a naming convention; where the evidence \
+            settles nothing, the finding says so rather than offering the \
+            likeliest answer.
 
             """
         section += "\n" + table(["Aspect", "Finding", "Basis"], rows)
@@ -187,7 +189,15 @@ public struct ProjectDocument {
         let evidence = findings
             .map { finding in
                 "**\(finding.dimension) — \(finding.value)**\n\n"
-                    + finding.evidence.map { "- \(escaped($0))" }.joined(separator: "\n")
+                    + finding.evidence.map { item in
+                        var line = "- \(escaped(item.statement)) _(\(item.basis.displayName))_"
+                        if !item.locations.isEmpty {
+                            line += "\n  " + item.locations
+                                .map { "`\(escaped($0))`" }
+                                .joined(separator: " ")
+                        }
+                        return line
+                    }.joined(separator: "\n")
             }
             .joined(separator: "\n\n")
 
