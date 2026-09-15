@@ -629,10 +629,12 @@ keel add feature Library          # a second feature, shaped like the first
 
 ```bash
 cd InheritedApp
-keel doctor      # can this machine even build it?
-keel inspect     # targets, structure, and the architecture it implies
-keel check       # what is already wrong with it
-keel document    # PROJECT.md, to read on the train
+keel doctor                    # can this machine even build it?
+keel inspect                   # targets, structure, and the architecture it implies
+keel inspect --relationships   # what is made of what
+keel inspect --graph           # what depends on what, and any cycles
+keel check                     # what is already wrong with it
+keel document                  # PROJECT.md, to read on the train
 ```
 
 Everything there works on a project that does not currently compile — which is
@@ -676,6 +678,12 @@ Neither touches the network, needs an account, or invokes an agent.
 | ✅ | `keel check` and `keel doctor` | done |
 | ✅ | Homebrew distribution | done |
 | ✅ | `keel add feature` | done |
+| ✅ | Import graph | done |
+| ✅ | Type relationship graph | done |
+| ✅ | Unified dependency graph | done |
+| ✅ | Relationship-aware architecture | done |
+| ⏳ | `keel check` against real boundaries | next |
+| ⏳ | Interactive architecture explorer | planned |
 
 </details>
 
