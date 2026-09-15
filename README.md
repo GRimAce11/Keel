@@ -2,7 +2,7 @@
 
 # ⚓ Keel
 
-### Create, understand, and maintain iOS projects from the terminal.
+### Understand, validate, and create iOS projects from the terminal.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GRimAce11/Keel/ci.yml?branch=main&style=for-the-badge&labelColor=0D1117&color=2EA043&label=CI)](https://github.com/GRimAce11/Keel/actions)
 [![Swift](https://img.shields.io/badge/Swift-6.0-F05138?style=for-the-badge&labelColor=0D1117&logo=swift&logoColor=F05138)](https://swift.org)
@@ -26,19 +26,39 @@
 ## ⚡ What it looks like
 
 <div align="center">
-  <img src=".github/assets/demo.svg" alt="keel new MyApp — interactive component selection" width="840">
+  <img src=".github/assets/demo.svg" alt="keel inspect --graph and keel check on a project with a feature cycle" width="840">
 </div>
 
 <br>
 
 ## 🧭 Why Keel
 
-Most iOS project templates are a folder you clone and immediately start
-deleting from. Keel asks what you actually want and writes only that — a
-project generated without networking contains no `APIClient.swift` to remove.
+**Somebody hands you an iOS codebase you have never seen.** Keel reads it and
+tells you what it is made of — which features depend on which, where the
+screens get their data, which boundaries the project keeps and where it breaks
+its own rules — with the file and line behind every claim.
 
-It then keeps working *after* the first commit: reading an existing project,
-explaining its architecture, and validating it against its own rules.
+```bash
+keel explore          # walk through it
+keel inspect --graph  # what depends on what, and any cycles
+keel check            # where it breaks its own rules
+```
+
+It works on a project that does not compile, which is usually the state an
+inherited one is in. No build, no network, no account, and no AI unless you
+ask for it.
+
+**Every finding says what it rests on.** A type conforming to SwiftUI's `View`
+is a view *from the code*; a type called `ArticleRepository` is a repository
+*because somebody named it one*. Keel never reports the second as the first,
+and where the evidence settles nothing it says `Undetermined` rather than
+offering the likeliest guess. That is the part an assistant cannot do: the
+same question asked twice gets the same answer, with the same lines behind it,
+which is what makes it usable as a CI gate.
+
+It also **generates** projects — `keel new` writes only the components you ask
+for, so a project without networking contains no `APIClient.swift` to delete.
+But the reason to reach for Keel is the codebase you have already got.
 
 <table>
 <tr>
@@ -117,13 +137,13 @@ flowchart TD
 
 | | Command | What it does | Status |
 |:--:|---|---|:--:|
+| 🧭 | `keel explore` | Walk through a project's architecture interactively | ✅ Working |
+| 🔍 | `keel inspect` | Report structure, dependencies, relationships, architecture | ✅ Working |
+| ✅ | `keel check` | Validate a project against its real architecture boundaries | ✅ Working |
+| 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
+| 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🆕 | `keel new` | Create a new iOS project | ✅ Working |
 | ➕ | `keel add feature` | Generate a feature into an existing project | ✅ Working |
-| 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
-| 🔍 | `keel inspect` | Report targets, schemes, dependencies, relationships, architecture | ✅ Working |
-| ✅ | `keel check` | Validate a project against its real architecture boundaries | ✅ Working |
-| 🧭 | `keel explore` | Walk through a project's architecture interactively | ✅ Working |
-| 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
 | 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
 
 <br>

@@ -2,11 +2,16 @@
 //
 //  Draws .github/assets/demo.svg, the terminal session shown in the README.
 //
-//  The session below is real output, captured from `keel new` and `keel inspect`
-//  on a generated project. Keeping it here rather than hand-editing the SVG
-//  means the asset can be regenerated when the output changes, instead of
-//  quietly drifting from what Keel actually prints — which is what happened to
-//  the version this replaces.
+//  The session below is real output, captured from `keel inspect` and
+//  `keel check` on a project with a feature cycle in it. Keeping it here rather
+//  than hand-editing the SVG means the asset can be regenerated when the output
+//  changes, instead of quietly drifting from what Keel actually prints — which
+//  has now happened twice, most recently when the architecture basis column
+//  gained "from relationships" and the rule count went from 8 to 17.
+//
+//  It shows reading a codebase rather than generating one, deliberately.
+//  Generating is the contested half; reading one somebody handed you is the
+//  half nothing else does.
 //
 //  Usage: swift Scripts/make-demo.swift .github/assets/demo.svg
 //
@@ -45,44 +50,44 @@ struct Span {
 
 // MARK: - The session
 
-/// Real output. `keel inspect`'s architecture block is the part worth showing:
-/// it is the thing no other tool does, and the right-hand column is the claim
-/// Keel is actually making.
+/// Real output. The architecture block is the part worth showing: it is the
+/// thing no other tool does, and the right-hand column is the claim Keel is
+/// actually making — a relationship, a declaration, or somebody's naming.
 let session: [[Span]] = [
-    [Span(0, "$ ", .green), Span(2, "keel new Bookshelf --yes")],
+    [Span(0, "$ ", .green), Span(2, "keel inspect --graph")],
     [],
-    [Span(0, "✓", .green), Span(2, "Wrote 48 files", .dim)],
-    [Span(0, "✓", .green), Span(2, "Bookshelf is ready.", .dim)],
+    [Span(0, "Feature dependencies", .text, bold: true)],
+    [Span(2, "Articles", .dim)],
+    [Span(4, "└── Settings", .dim), Span(20, "1 link", .dim)],
+    [Span(2, "Settings", .dim)],
+    [Span(4, "└── Articles", .dim), Span(20, "1 link", .dim)],
     [],
-    [Span(0, "$ ", .green), Span(2, "keel add feature Library")],
-    [],
-    [Span(0, "✓", .green), Span(2, "Added Library to Bookshelf/Features/Library", .dim)],
+    [Span(0, "Cycles", .text, bold: true)],
+    [Span(2, "feature", .dim), Span(12, "Articles → Settings → Articles", .yellow)],
     [],
     [Span(0, "$ ", .green), Span(2, "keel inspect")],
     [],
     [Span(0, "Architecture", .text, bold: true)],
-    [Span(2, "SwiftUI MVVM, organised by feature, wired through a composition", .dim)],
-    [Span(2, "root, built on @Observable, async/await and SwiftData.", .dim)],
-    [],
-    [Span(2, "Presentation", .dim), Span(18, "MVVM"), Span(37, "from the code", .cyan)],
-    [Span(18, "8 SwiftUI views declared.", .dim)],
-    [Span(18, "4 types named with a ViewModel suffix.", .dim)],
-    [Span(18, "4 of those are @Observable or an ObservableObject.", .dim)],
-    [Span(2, "Organisation", .dim), Span(18, "Feature-based"), Span(37, "from naming", .yellow)],
-    [Span(18, "3 feature folders found.", .dim)],
-    [Span(2, "Feature layers", .dim), Span(18, "Consistent"), Span(37, "from naming", .yellow)],
-    [Span(18, "All 3 features are divided into Data, Domain", .dim)],
-    [Span(18, "and Presentation.", .dim)],
-    [Span(2, "Persistence", .dim), Span(18, "SwiftData"), Span(37, "from the code", .cyan)],
-    [Span(18, "SwiftData imported by 3 files.", .dim)],
-    [Span(18, "1 type marked @Model.", .dim)],
-    [Span(2, "Wiring", .dim), Span(18, "Composition root"), Span(37, "from naming", .yellow)],
-    [Span(18, "AppContainer declared in App/AppContainer.swift.", .dim)],
+    [Span(2, "Presentation", .dim), Span(21, "MVVM"), Span(40, "from relationships", .purple)],
+    [Span(21, "2 views refer to one, in 4 places.", .dim)],
+    [Span(2, "Screen data", .dim), Span(21, "Mixed"), Span(40, "from relationships", .purple)],
+    [Span(21, "3 references from a view straight to a repository.", .dim)],
+    [Span(2, "Organisation", .dim), Span(21, "Feature-based"), Span(40, "from naming", .yellow)],
+    [Span(21, "2 feature folders found.", .dim)],
+    [Span(2, "Feature isolation", .dim), Span(21, "Coupled"), Span(40, "from relationships", .purple)],
+    [Span(2, "Persistence", .dim), Span(21, "SwiftData"), Span(40, "from the code", .cyan)],
+    [Span(21, "1 type marked @Model.", .dim)],
+    [Span(2, "Wiring", .dim), Span(21, "Composition root"), Span(40, "from relationships", .purple)],
+    [Span(21, "AppContainer constructs 3 types that other", .dim)],
+    [Span(21, "types take as initializer parameters.", .dim)],
     [],
     [Span(0, "$ ", .green), Span(2, "keel check")],
     [],
-    [Span(0, "✓", .green), Span(2, "Nothing to report.", .dim)],
-    [Span(2, "Checked 48 Swift files against 8 rules.", .dim)],
+    [Span(0, "!", .yellow), Span(2, "Articles → Settings → Articles is a dependency cycle.", .dim)],
+    [Span(2, "Path: Articles → Settings → Articles", .dim)],
+    [Span(2, "Evidence:", .dim)],
+    [Span(4, "ArticleListViewModel.swift:13", .dim), Span(35, "→ SettingsViewModel", .dim)],
+    [Span(4, "SettingsViewModel.swift:13", .dim), Span(35, "→ Article", .dim)],
 ]
 
 // MARK: - Layout
