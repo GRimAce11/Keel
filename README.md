@@ -249,6 +249,7 @@ cd SomeApp
 keel inspect                  # targets, schemes, dependencies, source, architecture
 keel inspect --dependencies   # what each part of the project imports
 keel inspect --relationships  # how the project's own types refer to each other
+keel inspect --graph          # what depends on what, at every scope
 keel inspect --json           # all of it, as JSON
 ```
 
@@ -348,6 +349,50 @@ naming*, and a finding is only ever as strong as its weaker end.
 > [!NOTE]
 > These are references written in source, at lines you can open. Not a call
 > graph: Keel does not claim any of them runs, or in what order.
+
+### What depends on what
+
+Imports and type references answer the same question at different reaches, and
+each is blind exactly where the other looks — an import cannot cross into a
+single module, a type reference cannot see a package. Joined, they answer at
+whichever size you asked.
+
+```bash
+keel inspect --graph          # target, module, feature and layer scopes
+keel inspect --graph --json   # the same graph, as JSON
+```
+
+```text
+Feature dependencies
+  Articles
+    └── Settings  1 link  Probe/Features/Articles/Presentation/ArticleListViewModel.swift:13
+  Settings
+    └── Articles  1 link  Probe/Features/Settings/Presentation/SettingsViewModel.swift:13
+
+Cycles
+  feature  Articles → Settings → Articles
+
+Against the grain (1)
+  Core → Articles
+    Shared code depends on a feature, so it cannot be used without it.
+    Probe/Core/Utilities/AppLogger.swift:14  AppLogger → Article  property
+```
+
+Every edge unfolds back into the lines that produced it, so a coarse answer
+stays checkable.
+
+**Cycles need no rule to be wrong**, so they are reported wherever they appear
+in the architecture. **Directions do** — and the only thing a project layout
+establishes is that `Core` and `Shared` exist to be used by features, so
+depending the other way makes them unusable without that feature. One feature
+using another is reported as an edge and left to be judged, because nothing
+here says which way that one should run.
+
+> [!NOTE]
+> Cycles are only reported at target, module, feature and layer scope. A loop
+> between *types* is ordinary Swift — a protocol and the type conforming to it
+> name each other in every codebase — and flagging that would teach you to
+> ignore the section carrying the real ones.
 
 ### Writing it down
 

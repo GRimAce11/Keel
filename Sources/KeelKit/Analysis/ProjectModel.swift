@@ -40,6 +40,21 @@ public struct ProjectModel: Codable, Sendable, Equatable {
 
     // MARK: - Derived
 
+    /// Imports and type references joined into one answer to "what depends on
+    /// what", readable at file, type, layer, feature, module or target scope.
+    ///
+    /// Built on demand rather than stored. It is a join of `importGraph` and
+    /// `typeGraph`, both of which the model already holds — storing the result
+    /// would put the same facts in `--json` three times and give them room to
+    /// disagree. It is cheap: a few hundred links on a real project.
+    public func dependencyGraph() -> DependencyGraph {
+        DependencyGraphBuilder(inputs: .init(
+            importGraph: importGraph,
+            typeGraph: typeGraph,
+            modules: modules
+        )).build()
+    }
+
     public var allTargets: [Target] {
         projects.flatMap(\.targets)
     }

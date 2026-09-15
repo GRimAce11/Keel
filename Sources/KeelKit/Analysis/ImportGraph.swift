@@ -136,32 +136,7 @@ public struct ImportGraph: Codable, Sendable, Equatable {
         for edge in projectEdges() {
             adjacency[edge.from, default: []].insert(edge.to)
         }
-
-        var found: [[String]] = []
-        var seen: Set<String> = []
-
-        // Depth-first, keeping the path so a rediscovered node names the loop
-        // rather than only reporting that one exists.
-        func walk(_ node: String, _ path: [String], _ onPath: Set<String>) {
-            for next in (adjacency[node] ?? []).sorted() {
-                if onPath.contains(next) {
-                    guard let start = path.firstIndex(of: next) else { continue }
-                    let cycle = Array(path[start...]) + [next]
-                    // One cycle, whichever node it was entered from.
-                    let signature = Set(cycle)
-                    if !found.contains(where: { Set($0) == signature }) { found.append(cycle) }
-                    continue
-                }
-                guard !seen.contains(next) else { continue }
-                walk(next, path + [next], onPath.union([next]))
-            }
-            seen.insert(node)
-        }
-
-        for node in adjacency.keys.sorted() where !seen.contains(node) {
-            walk(node, [node], [node])
-        }
-        return found
+        return Cycles.find(in: adjacency)
     }
 
     // MARK: Shapes

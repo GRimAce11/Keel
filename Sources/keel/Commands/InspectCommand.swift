@@ -25,6 +25,9 @@ struct Inspect: ParsableCommand {
     @Flag(name: .customLong("relationships"), help: "Report how the project's own types refer to each other.")
     var relationships = false
 
+    @Flag(name: .customLong("graph"), help: "Report what depends on what, at every scope.")
+    var graph = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -40,7 +43,12 @@ struct Inspect: ParsableCommand {
         if json {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            print(String(decoding: try encoder.encode(inspection), as: UTF8.self))
+            // `--graph` narrows what is emitted, because the dependency graph
+            // is derived from the model rather than part of it.
+            let encoded = graph
+                ? try encoder.encode(inspection.dependencyGraph())
+                : try encoder.encode(inspection)
+            print(String(decoding: encoded, as: UTF8.self))
             return
         }
 
@@ -51,6 +59,11 @@ struct Inspect: ParsableCommand {
 
         if relationships {
             renderRelationships(inspection, console: console)
+            return
+        }
+
+        if graph {
+            renderGraph(inspection, console: console)
             return
         }
 
@@ -213,6 +226,139 @@ struct Inspect: ParsableCommand {
         }
         console.detail("")
         console.detail("Reported, not failed. Each of these is sometimes on purpose.")
+    }
+
+    // MARK: - Dependency graph
+
+    /// What depends on what, at every scope the project has one.
+    ///
+    /// Imports and type references answered together. Held apart they each
+    /// have a blind spot — an import cannot cross into a single module, a type
+    /// reference cannot see a package — and the blind spots do not overlap.
+    private func renderGraph(_ inspection: ProjectModel, console: Console) {
+        let graph = inspection.dependencyGraph()
+        console.heading(inspection.name)
+
+        guard !graph.links.isEmpty else {
+            console.detail("Nothing depends on anything Keel could place.")
+            return
+        }
+
+        console.detail(
+            "\(graph.links.count) dependenc\(graph.links.count == 1 ? "y" : "ies") found, "
+            + "from imports and type references together."
+        )
+
+        var drawn = false
+        for scope in DependencyScope.structural {
+            drawn = renderTree(scope, of: graph, console: console) || drawn
+        }
+
+        if !drawn {
+            console.heading("Scope")
+            console.detail("Nothing in this project groups into targets, modules, features or")
+            console.detail("layers that depend on each other. Try --relationships for the")
+            console.detail("type-level view.")
+        }
+
+        renderExternal(graph, console: console)
+        renderGraphCycles(graph, console: console)
+        renderViolations(graph, console: console)
+    }
+
+    /// One scope's tree, with the evidence behind each branch.
+    ///
+    /// Returns whether it drew anything, so the report can say plainly when a
+    /// project has no structure to draw rather than printing nothing at all.
+    @discardableResult
+    private func renderTree(
+        _ scope: DependencyScope,
+        of graph: DependencyGraph,
+        console: Console
+    ) -> Bool {
+        let branches = graph.tree(at: scope)
+        guard !branches.isEmpty else { return false }
+
+        console.heading("\(scope.displayName) dependencies")
+
+        for branch in branches {
+            console.detail(branch.name)
+            let width = branch.dependencies.map(\.to.count).max() ?? 0
+
+            for (index, edge) in branch.dependencies.enumerated() {
+                let isLast = index == branch.dependencies.count - 1
+                let name = edge.to.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
+                let count = edge.evidence.count
+                console.detail(
+                    "  \(isLast ? "└──" : "├──") \(name)  "
+                    + "\(count) \(count == 1 ? "link" : "links")"
+                    + "  \(edge.evidence[0].location)"
+                )
+            }
+        }
+        return true
+    }
+
+    /// What the project reaches for outside itself.
+    ///
+    /// Kept separate from the trees above: a framework is a dependency, but it
+    /// is not part of the architecture being described, and mixing the two
+    /// makes both harder to read.
+    private func renderExternal(_ graph: DependencyGraph, console: Console) {
+        let scope: DependencyScope = graph.tree(at: .feature).isEmpty ? .module : .feature
+        let external = graph
+            .edges(at: scope, includingExternal: true)
+            .filter { $0.evidence.contains { $0.to.isExternal } }
+        guard !external.isEmpty else { return }
+
+        console.heading("Outside the project, by \(scope.displayName.lowercased())")
+        var lastFrom: String?
+        for edge in external {
+            if edge.from != lastFrom {
+                console.detail(edge.from)
+                lastFrom = edge.from
+            }
+            console.detail("  → \(edge.to)  \(edge.evidence.count) import\(edge.evidence.count == 1 ? "" : "s")")
+        }
+    }
+
+    private func renderGraphCycles(_ graph: DependencyGraph, console: Console) {
+        let found = DependencyScope.structural
+            .map { (scope: $0, cycles: graph.cycles(at: $0)) }
+            .filter { !$0.cycles.isEmpty }
+        guard !found.isEmpty else { return }
+
+        console.heading("Cycles")
+        for entry in found {
+            for cycle in entry.cycles {
+                console.detail("\(entry.scope.displayName.lowercased())  \(cycle.joined(separator: " → "))")
+            }
+        }
+        console.detail("")
+        console.detail("Reported, not failed. A cycle is usually a problem and occasionally")
+        console.detail("deliberate — and unlike a direction, it needs no rule to be wrong.")
+    }
+
+    /// Dependencies running against a direction the project itself establishes.
+    private func renderViolations(_ graph: DependencyGraph, console: Console) {
+        let violations = graph.violations
+        guard !violations.isEmpty else { return }
+
+        console.heading("Against the grain (\(violations.count))")
+        for violation in violations {
+            console.detail(violation.headline)
+            console.detail("  \(violation.rule.summary).")
+            for link in violation.evidence.prefix(3) {
+                console.detail("  \(link.location)  \(link.describedInFull)")
+            }
+            if violation.evidence.count > 3 {
+                console.detail("  and \(violation.evidence.count - 3) more")
+            }
+        }
+        console.detail("")
+        console.detail("Only where the project establishes a direction — shared code exists")
+        console.detail("to be used by features. One feature using another is an edge above,")
+        console.detail("not a fault: nothing here says which way that one should run.")
     }
 
     // MARK: - Report
