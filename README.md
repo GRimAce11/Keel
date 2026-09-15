@@ -778,17 +778,56 @@ Neither touches the network, needs an account, or invokes an agent.
 | ✅ | Canonical evidence model | done |
 | ✅ | AI interprets relationships | done |
 | ✅ | Interactive architecture explorer | done |
-| ⏳ | Performance and hardening | next |
+| ✅ | Performance and hardening | done |
 
 </details>
 
 <br>
+
+## ⚠️ What Keel cannot tell you
+
+Stated plainly, because a tool that reports its limits is easier to trust than
+one that does not.
+
+**It reads source, not behaviour.** Every relationship is a mention written in
+a file, at a line you can open. Keel does not know whether that line runs, how
+often, or in what order. Nothing here is a call graph.
+
+**Roles are partly naming.** A type conforming to SwiftUI's `View` is a view
+*from the code*. A type called `ArticleRepository` is a repository *because
+somebody named it one*, and Keel says which it had. It cannot recognise a
+repository that is called something else.
+
+**Ownership comes from folders.** Which feature a file belongs to is read from
+the directory layout, because with synchronized folder groups the project file
+says nothing about it. A project organised some other way gets `Undetermined`
+rather than an invented answer.
+
+**One module is one module.** Imports cannot show coupling inside a single
+target — that is what the type graph is for — and type references cannot see
+inside a package. Neither can see across a language boundary into Objective-C.
+
+**No build means no compiler.** Working on a project that does not compile is
+the point, and the cost is that Keel resolves names the way the language does
+*approximately*: a bare name reaches top-level types and nested ones only from
+inside their scope. Two types sharing a name resolve to one of them, and the
+finding says it was a name match rather than a resolution.
+
+**It has no opinion about your architecture.** It reports what is there. The
+only direction it will call wrong is one the project itself establishes — code
+in `Core` or `Shared` being depended on *by* features — plus cycles, which need
+no rule to be wrong. One feature using another is an edge, not a fault.
 
 ## 🤝 Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it lists the few things Keel
 refuses on principle (third-party dependencies, AI in a core command), so
 nobody builds something that was never going to land.
+
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Found a
+security problem? [SECURITY.md](SECURITY.md) explains how to report it
+privately — and what Keel is and is not allowed to do, which is most of what
+people want to know.
 
 ```bash
 swift build

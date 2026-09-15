@@ -169,6 +169,113 @@ struct CLITests {
         #expect(doctor.combinedOutput.contains("Toolchain"))
     }
 
+    // MARK: - Every command, on a real project
+
+    @Test("Every command and flag runs on a generated project")
+    func everySurfaceRuns() throws {
+        // The release check in one test. Each of these is a surface somebody
+        // could have in a script, and a flag that stopped parsing would
+        // otherwise only be found by a user.
+        let console = Console(useColor: false)
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-cli-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let outcome = try ProjectGenerator(
+            configuration: ProjectConfiguration(
+                name: try ProjectName("Probe"),
+                bundleIdentifierPrefix: "com.acme",
+                components: Set(Component.allCases)
+            ),
+            console: console
+        ).generate(in: destination, initializeGit: false)
+        let path = outcome.projectDirectory.path
+
+        let surfaces: [[String]] = [
+            ["inspect", path],
+            ["inspect", path, "--json"],
+            ["inspect", path, "--graph"],
+            ["inspect", path, "--graph", "--json"],
+            ["inspect", path, "--relationships"],
+            ["inspect", path, "--dependencies"],
+            ["check", path],
+            ["check", path, "--strict"],
+            ["check", path, "--explain"],
+            ["check", path, "--json"],
+            ["check", path, "--interactive"],
+            ["explore", path],
+            ["document", path, "--stdout"],
+            ["document", path, "--stdout", "--no-ai"],
+            ["document", path, "--show-prompt"],
+            ["doctor", path],
+        ]
+
+        for arguments in surfaces {
+            let result = try CLIRunner.run(arguments)
+            #expect(result.succeeded, "`keel \(arguments.joined(separator: " "))` exited \(result.exitCode)")
+        }
+    }
+
+    @Test("JSON output stays machine-readable and free of interactive noise")
+    func jsonStaysClean() throws {
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-json-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let outcome = try ProjectGenerator(
+            configuration: ProjectConfiguration(
+                name: try ProjectName("Probe"),
+                bundleIdentifierPrefix: "com.acme",
+                components: Set(Component.allCases)
+            ),
+            console: Console(useColor: false)
+        ).generate(in: destination, initializeGit: false)
+        let path = outcome.projectDirectory.path
+
+        for arguments in [["inspect", path, "--json"],
+                          ["inspect", path, "--graph", "--json"],
+                          ["check", path, "--json"]] {
+            let result = try CLIRunner.run(arguments)
+            let data = Data(result.standardOutput.utf8)
+
+            #expect(throws: Never.self, "`\(arguments.joined(separator: " "))` did not emit JSON") {
+                _ = try JSONSerialization.jsonObject(with: data)
+            }
+            // No prompts, no colour, no headings leaking into a pipe.
+            #expect(!result.standardOutput.contains("\u{001B}["))
+            #expect(!result.standardOutput.contains("?"))
+        }
+    }
+
+    @Test("Interactive flags fall through to the report when there is no terminal")
+    func interactiveIsSafeInAPipe() throws {
+        // A stray `--interactive` in CI must not wait for somebody who is not
+        // there. The test harness gives the binary a pipe, which is the case.
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-tty-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let outcome = try ProjectGenerator(
+            configuration: ProjectConfiguration(
+                name: try ProjectName("Probe"),
+                bundleIdentifierPrefix: "com.acme",
+                components: []
+            ),
+            console: Console(useColor: false)
+        ).generate(in: destination, initializeGit: false)
+        let path = outcome.projectDirectory.path
+
+        let check = try CLIRunner.run(["check", path, "--interactive"])
+        #expect(check.combinedOutput.contains("Summary"))
+
+        let explore = try CLIRunner.run(["explore", path])
+        #expect(explore.succeeded)
+        #expect(explore.combinedOutput.contains("No terminal to ask questions in"))
+    }
+
     @Test("ai reports what is installed without running any of it")
     func aiListsWithoutInvoking() throws {
         let result = try CLIRunner.run(["ai"])
