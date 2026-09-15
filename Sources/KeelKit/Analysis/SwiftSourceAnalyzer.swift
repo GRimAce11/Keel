@@ -50,10 +50,7 @@ public struct SwiftSourceAnalyzer: Sendable {
     }
 
     static func relativePath(of url: URL, from root: URL?) -> String {
-        guard let root else { return url.path }
-        let prefix = root.standardizedFileURL.path + "/"
-        let path = url.standardizedFileURL.path
-        return path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
+        FilePath.relative(of: url, from: root)
     }
 }
 

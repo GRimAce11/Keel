@@ -96,8 +96,7 @@ public struct ProjectGenerator {
             // Tokens apply to every path component, so a template at
             // `__PROJECT_NAME__/App/__PROJECT_NAME__App.swift.tpl` lands at
             // `MyApp/App/MyAppApp.swift`.
-            let relativePath = fileURL.path
-                .replacingOccurrences(of: source.path + "/", with: "")
+            let relativePath = FilePath.relative(of: fileURL, from: source)
                 .split(separator: "/")
                 .map { renderer.renderPath(String($0)) }
                 .joined(separator: "/")

@@ -127,9 +127,7 @@ public struct FeatureGenerator {
         )
         guard let source = layout.sourceDirectory() else { return nil }
 
-        let prefix = model.rootPath + "/"
-        let path = source.standardizedFileURL.path
-        let relative = path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
+        let relative = FilePath.relative(of: source, from: URL(fileURLWithPath: model.rootPath))
         return "\(relative)/Features"
     }
 
