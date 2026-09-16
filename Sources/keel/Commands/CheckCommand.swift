@@ -74,10 +74,15 @@ struct Check: ParsableCommand {
             return
         }
 
-        for diagnostic in diagnostics {
+        for (index, diagnostic) in diagnostics.enumerated() {
+            // A rule between findings rather than only after them: once a
+            // finding runs to six lines, a blank line stops separating
+            // anything.
+            if index > 0 { console.rule() }
+
             headline(diagnostic, console: console)
             if let detail = diagnostic.detail {
-                console.detail(detail)
+                console.paragraph(detail)
             }
             renderEvidence(diagnostic, console: console)
             if explain { renderExplanation(diagnostic, console: console) }
@@ -108,9 +113,12 @@ struct Check: ParsableCommand {
         guard !diagnostic.evidence.isEmpty else { return }
 
         console.detail("Evidence:")
-        for item in diagnostic.evidence {
-            console.detail("  \(item.location)  \(item.statement)")
-        }
+        // Locations and statements as two columns, so the statements line up
+        // however long the paths are.
+        console.table(
+            diagnostic.evidence.map { [$0.location, $0.statement] },
+            indent: 4
+        )
     }
 
     /// Why the rule exists, and why it carries the severity it does.
@@ -122,10 +130,10 @@ struct Check: ParsableCommand {
         // teaches people to skip both.
         if rule.explanation != diagnostic.detail {
             console.detail("Why this rule exists:")
-            console.detail("  \(rule.explanation)")
+            console.paragraph(rule.explanation, indent: 4)
         }
         console.detail("Why it is a \(diagnostic.severity.displayName):")
-        console.detail("  \(rule.severityPolicy)")
+        console.paragraph(rule.severityPolicy, indent: 4)
     }
 
     // MARK: - Interactive

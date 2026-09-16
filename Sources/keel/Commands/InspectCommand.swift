@@ -403,13 +403,13 @@ struct Inspect: ParsableCommand {
         let findings = architecture.findings
 
         console.heading("Architecture")
-        console.detail(architecture.summary)
+        console.paragraph(architecture.summary)
         for line in architecture.flowSummary {
-            console.detail(line)
+            console.paragraph(line)
         }
         // Worth saying, because these counts are deliberately smaller than the
         // ones above: a test double imitates production code on purpose.
-        console.detail("Counted from the app's own source; test targets are left out.")
+        console.paragraph("Counted from the app's own source; test targets are left out.")
         console.write()
 
         let labelWidth = findings.map(\.dimension.count).max() ?? 0
@@ -429,12 +429,20 @@ struct Inspect: ParsableCommand {
             console.detail("\(label)  \(value)\(basis)")
 
             for item in finding.evidence {
-                console.detail("\(indent)\(item.statement)")
+                // Wrapped at the column the evidence starts on, so a long
+                // statement reads as one block under its finding rather than
+                // running off the terminal.
+                console.paragraph(item.statement, indent: labelWidth + 2)
                 // Locations only for the relationship evidence. A declaration
                 // count is checkable by re-reading the project; "this view
                 // holds that repository" is only checkable if it says where.
                 if item.basis == .structuralRelationship, !item.locations.isEmpty {
-                    console.detail("\(indent)  \(item.locations.joined(separator: "  "))")
+                    // One per line. Several paths joined onto one line were
+                    // the longest thing Keel printed, and a path is the thing
+                    // a reader most wants to select and copy.
+                    for location in item.locations {
+                        console.detail("\(indent)  \(location)")
+                    }
                 }
             }
         }
