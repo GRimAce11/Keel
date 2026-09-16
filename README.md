@@ -2,7 +2,7 @@
 
 # ⚓ Keel
 
-### Understand, validate, and create iOS projects from the terminal.
+### Understand an iOS codebase you did not write — from the terminal.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/GRimAce11/Keel/ci.yml?branch=main&style=for-the-badge&labelColor=0D1117&color=2EA043&label=CI)](https://github.com/GRimAce11/Keel/actions)
 [![Swift](https://img.shields.io/badge/Swift-6.0-F05138?style=for-the-badge&labelColor=0D1117&logo=swift&logoColor=F05138)](https://swift.org)
@@ -17,13 +17,36 @@
 ---
 
 > [!NOTE]
-> **Early development.** Every command listed below works. The API is not
-> stable yet, and rules may be added to `keel check` — see the
-> [roadmap](#-roadmap).
+> **Early development.** Every command below works. The API is not stable yet,
+> and rules may be added to `keel check` — see the [roadmap](#-roadmap).
 
 <br>
 
-## ⚡ What it looks like
+## 🚀 Install
+
+```bash
+brew install GRimAce11/tap/keel
+```
+
+<sub><code>GRimAce11/tap</code> is the tap and <code>keel</code> is the formula —
+no separate <code>brew tap</code> step, and plain <code>brew install keel</code>
+will not find it. Needs macOS 14 or newer.</sub>
+
+<br>
+
+## ⚡ Try it
+
+Point Keel at any iOS project. **It does not need to compile**, which is usually
+the state an inherited project is in — and nothing leaves your machine.
+
+```bash
+cd SomeApp
+
+keel explore     # walk through it, without knowing which flag to type
+keel inspect     # what it is made of, and the architecture that implies
+keel check       # where it breaks its own rules
+keel document    # write all of that down as PROJECT.md
+```
 
 <div align="center">
   <img src=".github/assets/demo.svg" alt="keel inspect --graph and keel check on a project with a feature cycle" width="840">
@@ -31,30 +54,24 @@
 
 <br>
 
-## 🧭 Why Keel
+## 🧭 What Keel is
 
 **Somebody hands you an iOS codebase you have never seen.** Keel reads it and
-tells you what it is made of — which features depend on which, where the
-screens get their data, which boundaries the project keeps and where it breaks
-its own rules — with the file and line behind every claim.
+tells you what it is made of — which features depend on which, where the screens
+get their data, which boundaries the project keeps and where it breaks its own
+rules — with the file and line behind every claim.
 
-```bash
-keel explore          # walk through it
-keel inspect --graph  # what depends on what, and any cycles
-keel check            # where it breaks its own rules
-```
-
-It works on a project that does not compile, which is usually the state an
-inherited one is in. No build, no network, no account, and no AI unless you
-ask for it.
+No build, no network, no account, and no AI unless you ask for it.
 
 **Every finding says what it rests on.** A type conforming to SwiftUI's `View`
 is a view *from the code*; a type called `ArticleRepository` is a repository
-*because somebody named it one*. Keel never reports the second as the first,
-and where the evidence settles nothing it says `Undetermined` rather than
-offering the likeliest guess. That is the part an assistant cannot do: the
-same question asked twice gets the same answer, with the same lines behind it,
-which is what makes it usable as a CI gate.
+*because somebody named it one*. Keel never reports the second as the first, and
+where the evidence settles nothing it says `Undetermined` rather than offering
+the likeliest guess.
+
+That is the part an assistant cannot do: the same question asked twice gets the
+same answer, with the same lines behind it, which is what makes it usable as a
+CI gate.
 
 It also **generates** projects — `keel new` writes only the components you ask
 for, so a project without networking contains no `APIClient.swift` to delete.
@@ -98,175 +115,82 @@ exist. Selection is always explicit; the default is always Keel alone.
 
 <br>
 
-## 🏛 Architecture
-
-Deterministic analysis is the foundation. An AI layer may *interpret* those
-facts — it may never override them.
-
-```mermaid
-flowchart TD
-    CLI["⚓ keel"] --> Core["Deterministic Core"]
-
-    Core --> Gen["Generate"]
-    Core --> Ana["Analyze"]
-    Core --> Val["Validate"]
-
-    Gen --> Model["ProjectModel"]
-    Ana --> Model
-    Val --> Model
-
-    Model --> Out["Markdown / Project"]
-    Model -.optional, user-selected.-> AI["AI Layer"]
-    AI -.interpretation only.-> Check["Keel validation"]
-    Check -.-> Out
-
-    classDef core fill:#0A84FF,stroke:#0A5FCC,stroke-width:2px,color:#fff
-    classDef facts fill:#2EA043,stroke:#1F7A33,stroke-width:2px,color:#fff
-    classDef ai fill:#8957E5,stroke:#6B3FC7,stroke-width:2px,color:#fff,stroke-dasharray: 5 3
-    classDef out fill:#F05138,stroke:#C03D28,stroke-width:2px,color:#fff
-
-    class CLI,Core core
-    class Gen,Ana,Val,Model facts
-    class AI,Check ai
-    class Out out
-```
-
-<br>
-
 ## 📟 Commands
 
-| | Command | What it does | Status |
-|:--:|---|---|:--:|
-| 🧭 | `keel explore` | Walk through a project's architecture interactively | ✅ Working |
-| 🔍 | `keel inspect` | Report structure, dependencies, relationships, architecture | ✅ Working |
-| ✅ | `keel check` | Validate a project against its real architecture boundaries | ✅ Working |
-| 📄 | `keel document` | Generate `PROJECT.md` from an existing project | ✅ Working |
-| 🩺 | `keel doctor` | Diagnose the toolchain and project | ✅ Working |
-| 🆕 | `keel new` | Create a new iOS project | ✅ Working |
-| ➕ | `keel add feature` | Generate a feature into an existing project | ✅ Working |
-| 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use | ✅ Working |
+| | Command | What it does |
+|:--:|---|---|
+| 🧭 | `keel explore` | Walk through a project's architecture interactively |
+| 🔍 | `keel inspect` | Report structure, dependencies, relationships, architecture |
+| ✅ | `keel check` | Validate a project against its real architecture boundaries |
+| 📄 | `keel document` | Generate `PROJECT.md` from an existing project |
+| 🩺 | `keel doctor` | Diagnose the toolchain and project |
+| 🆕 | `keel new` | Create a new iOS project |
+| ➕ | `keel add feature` | Generate a feature into an existing project |
+| 🤖 | `keel ai` | Inspect and choose which local AI agent Keel may use |
+
+Every one of them takes a path, and defaults to the working directory.
 
 <br>
 
-## 📦 Components
-
-`keel new` asks about each of these independently. Say no and the files are
-never written.
-
-| Component | What you get |
-|---|---|
-| **Networking** | `APIClient`, endpoints, typed errors, retry and auth headers |
-| **Dependency injection** | `AppContainer` composition root with constructor injection |
-| **Persistence** | SwiftData model container and a store protocol |
-| **Authentication** | Token storage, refresh, and sign-out on 401 |
-| **Keychain storage** | Secure storage wrapping the Keychain API |
-| **Localization** | String Catalog and typed accessors |
-| **Unit tests** | Test target with stubs and ViewModel tests |
-| **Design system** | Spacing, colour and typography tokens |
-| **Example feature** | A working list + detail screen you can copy |
-
-> [!TIP]
-> Components that depend on others resolve automatically. `--no-networking`
-> also drops authentication and the example feature — and says so, rather than
-> emitting a project that does not compile.
+---
 
 <br>
 
-## 🔒 Privacy
+## 📖 Using Keel
 
-Keel reads your project and writes files. It sends nothing anywhere, with one
-exception you have to ask for twice.
-
-| | |
-|---|---|
-| **Network access** | None, ever, except an agent you selected running under `--ai` |
-| **Telemetry** | None |
-| **Accounts or keys** | None. Keel has no account and reads no API key |
-| **Core commands** | `new`, `inspect`, `document`, `check`, `doctor`, `add` are fully offline |
-
-When you do ask for `--ai`, what leaves the machine is **the analysis, not your
-code**: the same derived facts `PROJECT.md` already prints — counts,
-conformances, folder and type names, the evidence behind each verdict. There is
-a test asserting that a secret in your source cannot reach the prompt, because
-Keel records that a type exists, never what a string literal contains.
-
-`keel document --show-prompt` prints the whole thing without sending it, so you
-never have to take that on trust.
-
-> [!IMPORTANT]
-> Keel detects installed agents by reading `PATH`. It does not run them — not
-> even for a version string. Detection, selection and invocation are three
-> separate acts, and `keel document --no-ai` overrides all of them.
+Three things people actually do with it. Each section opens with the short
+version; the collapsed blocks hold the detail and the reasoning.
 
 <br>
 
-## 🚀 Install
+### 1️⃣ Understand a project you did not write
 
 ```bash
-brew install GRimAce11/tap/keel
+keel explore     # start here if you do not know what you are looking for
 ```
 
-<sub>From Keel's own tap — `GRimAce11/tap` is the tap, `keel` is the formula, and no
-separate <code>brew tap</code> step is needed. Plain <code>brew install keel</code>
-will not find it.</sub>
+`explore` is a menu over everything the other commands report — architecture,
+features, dependencies, data flow, types by role, warnings, search — so you do
+not have to know which flag produces what. Pick a dependency and it shows the
+evidence path; pick a warning and it shows the rule and why that rule exists.
 
 <details>
-<summary><b>From source</b></summary>
+<summary><b>What <code>explore</code> will and will not do</b></summary>
 
 <br>
 
-```bash
-git clone https://github.com/GRimAce11/Keel.git
-cd Keel
-swift build -c release
-cp .build/release/keel /usr/local/bin/
+```text
+Probe
+  Swift files   43
+  Types         62
+  Features      2
+  Targets       2
+
+  SwiftUI MVVM, screens fed both ways, organised by feature, wired through a
+  composition root, built on @Observable, async/await and SwiftData.
+
+    1. Architecture      5. Types by role
+    2. Features          6. Architecture warnings
+    3. Dependencies      7. Search
+    4. Data flow         8. Exit
 ```
+
+Everything it shows is the same facts `inspect` and `check` report, reachable
+without knowing which flag produces them. Pick a type and it shows what it refers
+to and what refers back.
+
+Where the graph cannot establish something, it says **"Undetermined from static
+analysis"** rather than offering the likeliest shape.
+
+**It never invokes an agent**, and it works on a project that does not compile —
+the state an inherited project is usually in. Piped or redirected it prints the
+summary and stops, rather than waiting for somebody who is not there.
 
 </details>
 
-<sub>Requires macOS 13+. Building from source needs Xcode 16.3 or newer, for
-Swift 6.1. Keel ships from its own tap rather than homebrew-core, which requires
-a self-submitted project to have 225 stars, 90 forks or 90 watchers. A tap is
-what Homebrew's own policy recommends until then.</sub>
-
-<br>
-
-## ⚙️ Usage
+When you do know what you want:
 
 ```bash
-keel new MyApp                        # ask about each component
-keel new MyApp --yes                  # take every default, for CI
-keel new MyApp --minimal              # app skeleton only
-keel new MyApp --no-networking        # skip one component
-keel new MyApp --bundle-id com.acme --ios 18.0
-```
-
-### Adding to an existing project
-
-```bash
-keel add feature Profile
-```
-
-```text
-Features/Profile/
-├── Data/Profile Repository.swift
-├── Domain/Profile.swift
-└── Presentation/ProfileView.swift, ProfileViewModel.swift
-ProbeTests/Features/ProfileTests.swift
-```
-
-**The project decides the shape, not Keel.** Where features live, and which
-infrastructure exists, are read from the project before anything is written — so
-a project generated without networking gets a repository with no networking in
-it and a comment saying why, rather than a stack it never asked for. A project
-with no test target gets no test file.
-
-Generated features pass `keel check`, and a test asserts it.
-
-### Reading an existing project
-
-```bash
-cd SomeApp
 keel inspect                  # targets, schemes, dependencies, source, architecture
 keel inspect --dependencies   # what each part of the project imports
 keel inspect --relationships  # how the project's own types refer to each other
@@ -274,14 +198,14 @@ keel inspect --graph          # what depends on what, at every scope
 keel inspect --json           # all of it, as JSON
 ```
 
-Everything reported is read from the project's own files — no `xcodebuild`, no
-network, no AI. It works on a project that does not currently compile, which is
-often exactly when you need to understand it.
+<details>
+<summary><b>How the architecture verdict is reached, and why it can be trusted</b></summary>
 
-The last section names the architecture — MVVM or not, feature-based or
-layered, what the screens actually hold, which way dependencies run — and shows
-what each conclusion rests on. Every finding says which of **three** kinds of
-evidence got it there, because they are not the same claim:
+<br>
+
+The last section of `keel inspect` names the architecture — MVVM or not,
+feature-based or layered, what the screens actually hold, which way dependencies
+run — and shows what each conclusion rests on:
 
 ```
 Architecture
@@ -307,27 +231,35 @@ Architecture
                     initializer parameters.
 ```
 
-`from relationships` outranks `from the code`, which outranks `from naming`.
-A type *called* `ArticleViewModel` is a naming habit; a type that is
-`@Observable` is a declaration; a view that actually *holds* one is a
-relationship — and only the last of those is evidence that the project is
-built the way the diagram says.
+Every finding says which of **three** kinds of evidence got it there, because
+they are not the same claim. `from relationships` outranks `from the code`,
+which outranks `from naming`. A type *called* `ArticleViewModel` is a naming
+habit; a type that is `@Observable` is a declaration; a view that actually
+*holds* one is a relationship — and only the last of those is evidence that the
+project is built the way the diagram says.
 
 The rule is mechanical rather than per-finding: **a conclusion resting only on
 names can never be reported as coming from the code**, whatever it concludes.
 Evidence that undercuts a verdict is printed and not counted as support, and
-evidence that merely sets the scene — how many views exist, when the question
-is where their state lives — is counted as neither.
+evidence that merely sets the scene — how many views exist, when the question is
+where their state lives — is counted as neither.
 
 Nothing is inferred from a name where a relationship can answer instead. A
 composition root is a type that *builds* the app's services, not a type called
 `*Container`; a project can be full of view models and still have every view
 holding its own repository, and Keel reports that rather than the name.
 
-Where the evidence settles nothing, the answer is `Undetermined` rather than
-the likeliest guess.
+Where the evidence settles nothing, the answer is `Undetermined` rather than the
+likeliest guess.
 
-### What depends on what
+</details>
+
+<details>
+<summary><b>What depends on what — imports, type references, and the graph that joins them</b></summary>
+
+<br>
+
+#### Imports
 
 ```bash
 keel inspect --dependencies
@@ -346,9 +278,9 @@ ProbeTests
 Every edge knows the file and line that declared it, so a dependency is
 checkable rather than asserted. Packages are matched against the product names
 the project actually links — `socket.io-client-swift` vends `SocketIO`, and
-matching the package name would miss it. Anything Keel cannot place is
-`unknown` rather than assumed to be Apple's, because an optimistic default
-would quietly relabel every in-house framework as a system one.
+matching the package name would miss it. Anything Keel cannot place is `unknown`
+rather than assumed to be Apple's, because an optimistic default would quietly
+relabel every in-house framework as a system one.
 
 Import cycles are reported and not failed. A cycle between modules is usually a
 problem and occasionally deliberate.
@@ -359,7 +291,7 @@ problem and occasionally deliberate.
 > no import at all. Keel says so rather than letting silence read as "nothing
 > depends on this".
 
-### What is made of what
+#### Type references
 
 Imports stop at the module boundary. Type references do not — so this is the
 report that can see inside a single-target app, where almost every iOS project
@@ -388,16 +320,16 @@ property from a mention in a method body. Each one carries the file and line
 that wrote it.
 
 A name that matches nothing the project declares is left out rather than
-reported weakly, and a name two types share is marked as a name match instead
-of a resolution. Roles work the same way — a type conforming to `View` is a
-view *from the code*, a type called `ArticleRepository` is a repository *from
+reported weakly, and a name two types share is marked as a name match instead of
+a resolution. Roles work the same way — a type conforming to `View` is a view
+*from the code*, a type called `ArticleRepository` is a repository *from
 naming*, and a finding is only ever as strong as its weaker end.
 
 > [!NOTE]
 > These are references written in source, at lines you can open. Not a call
 > graph: Keel does not claim any of them runs, or in what order.
 
-### What depends on what
+#### Both at once
 
 Imports and type references answer the same question at different reaches, and
 each is blind exactly where the other looks — an import cannot cross into a
@@ -432,8 +364,8 @@ stays checkable.
 in the architecture. **Directions do** — and the only thing a project layout
 establishes is that `Core` and `Shared` exist to be used by features, so
 depending the other way makes them unusable without that feature. One feature
-using another is reported as an edge and left to be judged, because nothing
-here says which way that one should run.
+using another is reported as an edge and left to be judged, because nothing here
+says which way that one should run.
 
 > [!NOTE]
 > Cycles are only reported at target, module, feature and layer scope. A loop
@@ -441,28 +373,38 @@ here says which way that one should run.
 > name each other in every codebase — and flagging that would teach you to
 > ignore the section carrying the real ones.
 
-### Writing it down
+</details>
+
+<br>
+
+### 2️⃣ Write it down, and keep it honest
 
 ```bash
 keel document              # write PROJECT.md into the project
 keel document --stdout     # print it instead
-keel document -o docs/Architecture.md
+keel document --check      # writes nothing, exits non-zero when out of date
 ```
 
 `PROJECT.md` holds the same facts `inspect` prints — structure, targets,
 dependencies, architecture — as Markdown, with the evidence behind each
-conclusion in a collapsible section. It is built from the same `ProjectModel`,
-so the two cannot disagree about a project.
+conclusion. It is built from the same `ProjectModel`, so the two cannot disagree
+about a project. It also **draws the dependency graph** as mermaid flowcharts,
+which GitHub renders:
 
-The output is deterministic: no timestamp, nothing that changes between runs
-unless the project changed. Re-running on an unchanged project produces an
-empty diff, which is what makes it safe to commit and regenerate.
-
-Because it is safe to commit, it can go stale — so it can be checked:
-
-```bash
-keel document --check    # writes nothing, exits non-zero when out of date
+```mermaid
+flowchart TD
+    App --> Core
+    App --> Features
+    Features --> Core
+    Features --> Shared
+    Shared --> Core
 ```
+
+The output is deterministic — no timestamp, nothing that changes between runs
+unless the project changed — so re-running on an unchanged project produces an
+empty diff. That is what makes it safe to commit.
+
+Because it is safe to commit, it can go stale, so it can be checked:
 
 ```text
 ✗ PROJECT.md is out of date.
@@ -474,16 +416,27 @@ keel document --check    # writes nothing, exits non-zero when out of date
   Run `keel document` to bring it up to date.
 ```
 
-It names what changed rather than only that something did, because a Markdown
-diff can say lines moved but not that a feature was added. Coupling counts as a
-change worth regenerating for; reference *counts* deliberately do not, since
-those move on every ordinary edit and would leave every document permanently
-stale. Each document carries
-a small record of the project it described, in an HTML comment that renders to
-nothing. A document written by hand has no such record, and `--check` says it
-cannot tell rather than guessing.
+Drop those two in CI next to your tests and documentation stops drifting:
 
-Drop it in CI next to your tests and documentation stops drifting.
+```yaml
+- run: keel check --strict          # fails on warnings too
+- run: keel document --check        # fails when PROJECT.md has drifted
+```
+
+<details>
+<summary><b>What else PROJECT.md carries, and how staleness is detected</b></summary>
+
+<br>
+
+`--check` names what changed rather than only that something did, because a
+Markdown diff can say lines moved but not that a feature was added. Coupling
+counts as a change worth regenerating for; reference *counts* deliberately do
+not, since those move on every ordinary edit and would leave every document
+permanently stale.
+
+Each document carries a small record of the project it described, in an HTML
+comment that renders to nothing. A document written by hand has no such record,
+and `--check` says it cannot tell rather than guessing.
 
 `PROJECT.md` also carries a section written for whoever picks the project up
 next — often a coding agent: the architecture rules the project follows, its
@@ -500,7 +453,185 @@ so following the document and passing the checker cannot come apart.
 > Keel replaces its own `PROJECT.md` without asking, and refuses to replace one
 > it did not write. Pass `--force` if you mean it.
 
-### Choosing an AI agent
+</details>
+
+<details>
+<summary><b>Validating: what <code>keel check</code> calls an error, and what it only suspects</b></summary>
+
+<br>
+
+```bash
+keel check                # findings, exits non-zero on errors
+keel check --strict       # warnings fail too, for CI
+keel check --explain      # why each finding exists, and why it has that severity
+keel check --interactive  # walk the findings one at a time
+keel check --json
+keel doctor               # can this machine build what Keel generates?
+```
+
+`check` validates real architecture boundaries, not just declarations. It reads
+the same relationship graphs `inspect` does, so it can report a screen holding a
+networking client, a feature cycle, shared code depending on a feature, or a
+layer pointing back outwards — each with the lines it was read from:
+
+```text
+✗ Probe/Features/Articles/Presentation/StoredItemView.swift:4 —
+  StoredItemView refers to a persistence type, StoredItem, directly.
+  Evidence:
+    Probe/Features/Articles/Presentation/StoredItemView.swift:5  property: StoredItem
+
+! Articles → Settings → Articles is a dependency cycle.
+  Path: Articles → Settings → Articles
+  Evidence:
+    …/ArticleListViewModel.swift:13  Articles → Settings: ArticleListViewModel → SettingsViewModel
+    …/SettingsViewModel.swift:13     Settings → Articles: SettingsViewModel → Article
+```
+
+`check` separates what it is *sure* of from what it *suspects*, and the split is
+the point:
+
+| | |
+|---|---|
+| **error** | Structural, with a definite consequence. A `@Model` type in a file that does not import SwiftData; a scheme under `xcuserdata` that CI cannot see; a SwiftUI `View` holding an `@Model` type — where both ends are attributes and conformances, not names. |
+| **warning** | Rests on a naming convention, or on something syntax cannot fully see. A `*ViewModel` that is not `@MainActor` — which may inherit isolation Keel cannot follow, and the finding says so. |
+
+**Severity is derived from the evidence, not fixed per rule.** The same rule
+produces an error when both ends of a relationship are established by the code
+and a warning the moment a name is load-bearing: `ProfileView` holding a `@Model`
+type is certain, `ProfileView` holding an `ArticleRepository` rests on a suffix.
+Only errors fail the command by default. A checker that failed builds over a
+naming convention would be turned off within a week, so a convention never gets
+to be an error.
+
+That is also why a **feature cycle is a warning**. A cycle needs no rule to be
+wrong, but what counts as a feature comes from folder names — so the grouping is
+conventional even though the references are not.
+
+`--explain` prints why each rule exists and why the finding carries the severity
+it does. `--interactive` walks the findings one at a time, offering evidence, the
+dependency path, and the rule's rationale; it changes nothing about the exit
+code, and falls through to the plain report when there is no terminal, so a stray
+flag in CI never waits for somebody who is not there.
+
+Keel's own generated projects pass every rule, and a test asserts it — shipping a
+generator whose output fails its own checker would make the checker impossible to
+take seriously.
+
+</details>
+
+<br>
+
+### 3️⃣ Create a new project
+
+```bash
+keel new MyApp                        # ask about each component
+keel new MyApp --yes                  # take every default, for CI
+keel new MyApp --minimal              # app skeleton only
+keel new MyApp --no-networking        # skip one component
+keel new MyApp --bundle-id com.acme --ios 18.0
+```
+
+It opens and builds in Xcode as generated, and passes `keel check`.
+
+`keel new` asks about each component independently. **Say no and the files are
+never written** — a project without networking contains no `APIClient.swift` to
+delete.
+
+| Component | What you get |
+|---|---|
+| **Networking** | `APIClient`, endpoints, typed errors, retry and auth headers |
+| **Dependency injection** | `AppContainer` composition root with constructor injection |
+| **Persistence** | SwiftData model container and a store protocol |
+| **Authentication** | Token storage, refresh, and sign-out on 401 |
+| **Keychain storage** | Secure storage wrapping the Keychain API |
+| **Localization** | String Catalog and typed accessors |
+| **Unit tests** | Test target with stubs and ViewModel tests |
+| **Design system** | Spacing, colour and typography tokens |
+| **Example feature** | A working list + detail screen you can copy |
+
+> [!TIP]
+> Components that depend on others resolve automatically. `--no-networking` also
+> drops authentication and the example feature — and says so, rather than
+> emitting a project that does not compile.
+
+Adding to a project later:
+
+```bash
+keel add feature Profile
+```
+
+```text
+Features/Profile/
+├── Data/ProfileRepository.swift
+├── Domain/Profile.swift
+└── Presentation/ProfileView.swift, ProfileViewModel.swift
+ProbeTests/Features/ProfileTests.swift
+```
+
+**The project decides the shape, not Keel.** Where features live, and which
+infrastructure exists, are read from the project before anything is written — so
+a project generated without networking gets a repository with no networking in it
+and a comment saying why, rather than a stack it never asked for. A project with
+no test target gets no test file.
+
+Generated features pass `keel check`, and a test asserts it.
+
+<details>
+<summary><b>All <code>keel new</code> options</b></summary>
+
+<br>
+
+| Option | Effect |
+|---|---|
+| `--bundle-id <prefix>` | Bundle identifier prefix. The project slug is appended. |
+| `--ios <version>` | Minimum iOS version. Defaults to `17.0`. |
+| `-y, --yes` | Accept every default without asking. |
+| `--minimal` | App skeleton only — no optional components. |
+| `--no-networking` | Skip the networking layer. |
+| `--no-dependency-injection` | Skip the DI container. |
+| `--no-persistence` | Skip persistence. |
+| `--no-authentication` | Skip authentication. |
+| `--no-keychain` | Skip Keychain storage. |
+| `--no-localization` | Skip localization. |
+| `--no-testing` | Skip the unit test target. |
+| `--no-design-system` | Skip the design system. |
+| `--no-example-feature` | Skip the example feature. |
+
+Names are normalised rather than rejected: `keel new "my cool app"` produces
+`MyCoolApp` with the bundle slug `my-cool-app`. Swift keywords and names starting
+with a digit are caught before anything is written.
+
+</details>
+
+<br>
+
+---
+
+<br>
+## 🤖 AI is optional, and never automatic
+
+**Keel works with no agent installed, no account, no API key and no network.**
+Every command above is deterministic. If you never read this section, nothing
+about Keel changes.
+
+If you do want an agent's reading of the facts, you permit one explicitly:
+
+```bash
+keel ai                       # what is installed, and what is selected
+keel ai use claude            # permit one — this does not run it
+keel document --show-prompt   # exactly what would be sent, sending nothing
+keel document --ai            # add an interpretation to PROJECT.md
+```
+
+**What leaves the machine is the analysis, not your code** — the same derived
+facts `PROJECT.md` already prints. There is a test asserting that a secret in
+your source cannot reach the prompt, because Keel records that a type exists,
+never what a string literal contains.
+
+<details>
+<summary><b>Choosing an agent, and when Keel is allowed to run it</b></summary>
+
+<br>
 
 ```bash
 keel ai                 # what is installed, and what is selected
@@ -509,13 +640,13 @@ keel ai verify          # run it once, to prove Keel can reach it
 keel ai forget          # back to Keel alone
 ```
 
-Detection reads `PATH` and nothing else. It does not shell out to `which`, and
-it does not run the agent — not even for a version string. Keel is allowed to
-notice an agent exists; running one is a separate act.
+Detection reads `PATH` and nothing else. It does not shell out to `which`, and it
+does not run the agent — not even for a version string. Keel is allowed to notice
+an agent exists; running one is a separate act.
 
 `keel ai verify` is the only command in Keel that invokes an agent. It sends one
-fixed, trivial prompt, prints the command before running it, and reads no
-project and sends no code.
+fixed, trivial prompt, prints the command before running it, and reads no project
+and sends no code.
 
 Your choice lives in `~/.config/keel/ai.json` as plain JSON, including the exact
 command line:
@@ -552,214 +683,169 @@ Cloning someone's project must not hand their configuration permission to run an
 agent on your machine, so the more restrictive of the two settings always wins —
 and `keel ai` tells you when a project is the reason.
 
-`keel document --no-ai` is absolute. It overrides the mode, the project config
-and anything else: no provider, no external process, no network. It is the flag
-you reach for when you need to be certain, and a guarantee with an exception
-would not be one.
+`keel document --no-ai` is absolute. It overrides the mode, the project config and
+anything else: no provider, no external process, no network. It is the flag you
+reach for when you need to be certain, and a guarantee with an exception would
+not be one.
 
-### Letting an agent interpret the facts
+</details>
 
-```bash
-keel document --show-prompt   # exactly what would be sent, sending nothing
-keel document --ai            # add an overview written by your agent
-```
+<details>
+<summary><b>What an agent is allowed to add, and what happens when it invents something</b></summary>
+
+<br>
 
 **The agent returns data; Keel writes the Markdown.** It fills named fields —
 overview, dependency flow, conventions, boundaries, inconsistencies, risks,
 reading order, legacy areas, questions — and Keel renders every heading around
 them. That ordering is the point: if the agent authored the document, every
-guarantee about structure and attribution would hold only as long as it
-followed instructions. Markdown an agent injects into a field is stripped
-rather than opening a section that looks measured.
+guarantee about structure and attribution would hold only as long as it followed
+instructions. Markdown an agent injects into a field is stripped rather than
+opening a section that looks measured.
 
 **Observed, inferred and suggested stay apart, and the agent does not get to
 choose which is which.** Keel measured the rest of the document; the agent's
-reading of it is labelled *inferred*, and its advice is labelled *suggested —
-not a rule this project follows*. There is no field an agent can fill that
-comes out labelled as observed. "Consider exposing authentication behind an
-abstraction" and "authentication is exposed behind an abstraction" are one word
-apart in a skim, and only one of them is true of your project.
+reading of it is labelled *inferred*, and its advice is labelled *suggested — not
+a rule this project follows*. There is no field an agent can fill that comes out
+labelled as observed. "Consider exposing authentication behind an abstraction"
+and "authentication is exposed behind an abstraction" are one word apart in a
+skim, and only one of them is true of your project.
 
-**A claim naming something that does not exist is dropped.** Every CamelCase
-name in a reply is checked against the project's own vocabulary — its types,
-features, modules, targets and imports. An agent that invents a
-`PaymentGateway` loses the sentence it invented it in, and the rest of the
-reply survives; an invented name is exactly what a reader would go looking for.
+**A claim naming something that does not exist is dropped.** Every CamelCase name
+in a reply is checked against the project's own vocabulary — its types, features,
+modules, targets and imports. An agent that invents a `PaymentGateway` loses the
+sentence it invented it in, and the rest of the reply survives; an invented name
+is exactly what a reader would go looking for.
+
+**The agent is told what Keel already wrote.** Conventions, architecture rules,
+prohibitions and anything `keel check` currently reports are sent as exclusions,
+so the interpretation adds to the document rather than restating it under a
+heading that makes advice look measured.
 
 Everything else in `PROJECT.md` is byte-for-byte what it would be without the
 flag — the interpretation lives inside its own fence and is attributed.
 
-**Keel sends the facts, not your code.** Since v1.1.0 that includes the
-relationship facts: what depends on what at feature, module and layer scope,
-any cycles, the roles types appear to fill, and the evidence behind each
-architecture finding with the lines it came from. All of it was derived by
-parsing files the agent never sees, and all of it already appears in
-`keel inspect`. `--show-prompt` shows you the whole thing before you commit to
-sending it.
-
 If the agent fails — no quota, no network, wrong flags — you get the document
-anyway, with a warning and no interpretation. Same if its reply is malformed,
-or if nothing in it survives checking. Losing a report because a bonus
-paragraph failed would be a poor trade.
-
-### Exploring a project you did not write
-
-```bash
-keel explore
-```
-
-```text
-Probe
-  Swift files   43
-  Types         62
-  Features      2
-  Targets       2
-
-  SwiftUI MVVM, screens fed both ways, organised by feature, wired through a
-  composition root, built on @Observable, async/await and SwiftData.
-
-    1. Architecture      5. Types by role
-    2. Features          6. Architecture warnings
-    3. Dependencies      7. Search
-    4. Data flow         8. Exit
-```
-
-Everything it shows is the same facts `inspect` and `check` report, reachable
-without knowing which flag produces them. Pick a dependency and it shows the
-evidence path; pick a warning and it shows the rule, the severity, the source,
-and why that rule exists; pick a type and it shows what it refers to and what
-refers back.
-
-Where the graph cannot establish something, it says **"Undetermined from static
-analysis"** rather than offering the likeliest shape.
-
-**It never invokes an agent**, and it works on a project that does not compile —
-the state an inherited project is usually in. Piped or redirected it prints the
-summary and stops, rather than waiting for somebody who is not there.
-
-### Validating and diagnosing
-
-```bash
-keel check                # findings, exits non-zero on errors
-keel check --strict       # warnings fail too, for CI
-keel check --explain      # why each finding exists, and why it has that severity
-keel check --interactive  # walk the findings one at a time
-keel check --json
-keel doctor               # can this machine build what Keel generates?
-```
-
-`check` validates real architecture boundaries, not just declarations. It reads
-the same relationship graphs `inspect` does, so it can report a screen holding
-a networking client, a feature cycle, shared code depending on a feature, or a
-layer pointing back outwards — each with the lines it was read from:
-
-```text
-✗ Probe/Features/Articles/Presentation/StoredItemView.swift:4 —
-  StoredItemView refers to a persistence type, StoredItem, directly.
-  Evidence:
-    Probe/Features/Articles/Presentation/StoredItemView.swift:5  property: StoredItem
-
-! Articles → Settings → Articles is a dependency cycle.
-  Path: Articles → Settings → Articles
-  Evidence:
-    …/ArticleListViewModel.swift:13  Articles → Settings: ArticleListViewModel → SettingsViewModel
-    …/SettingsViewModel.swift:13     Settings → Articles: SettingsViewModel → Article
-```
-
-`check` separates what it is *sure* of from what it *suspects*, and the split is
-the point:
-
-| | |
-|---|---|
-| **error** | Structural, with a definite consequence. A `@Model` type in a file that does not import SwiftData; a scheme under `xcuserdata` that CI cannot see; a SwiftUI `View` holding an `@Model` type — where both ends are attributes and conformances, not names. |
-| **warning** | Rests on a naming convention, or on something syntax cannot fully see. A `*ViewModel` that is not `@MainActor` — which may inherit isolation Keel cannot follow, and the finding says so. |
-
-**Severity is derived from the evidence, not fixed per rule.** The same rule
-produces an error when both ends of a relationship are established by the code
-and a warning the moment a name is load-bearing: `ProfileView` holding a
-`@Model` type is certain, `ProfileView` holding an `ArticleRepository` rests on
-a suffix. Only errors fail the command by default. A checker that failed builds
-over a naming convention would be turned off within a week, so a convention
-never gets to be an error.
-
-That is also why a **feature cycle is a warning**. A cycle needs no rule to be
-wrong, but what counts as a feature comes from folder names — so the grouping
-is conventional even though the references are not.
-
-`--explain` prints why each rule exists and why the finding carries the
-severity it does. `--interactive` walks the findings one at a time, offering
-evidence, the dependency path, and the rule's rationale; it changes nothing
-about the exit code, and falls through to the plain report when there is no
-terminal, so a stray flag in CI never waits for somebody who is not there.
-
-Keel's own generated projects pass every rule, and a test asserts it — shipping a
-generator whose output fails its own checker would make the checker impossible
-to take seriously.
-
-<details>
-<summary><b>All options</b></summary>
-
-<br>
-
-| Option | Effect |
-|---|---|
-| `--bundle-id <prefix>` | Bundle identifier prefix. The project slug is appended. |
-| `--ios <version>` | Minimum iOS version. Defaults to `17.0`. |
-| `-y, --yes` | Accept every default without asking. |
-| `--minimal` | App skeleton only — no optional components. |
-| `--no-networking` | Skip the networking layer. |
-| `--no-dependency-injection` | Skip the DI container. |
-| `--no-persistence` | Skip persistence. |
-| `--no-authentication` | Skip authentication. |
-| `--no-keychain` | Skip Keychain storage. |
-| `--no-localization` | Skip localization. |
-| `--no-testing` | Skip the unit test target. |
-| `--no-design-system` | Skip the design system. |
-| `--no-example-feature` | Skip the example feature. |
-
-Names are normalised rather than rejected: `keel new "my cool app"` produces
-`MyCoolApp` with the bundle slug `my-cool-app`. Swift keywords and names
-starting with a digit are caught before anything is written.
+anyway, with a warning and no interpretation. Same if its reply is malformed, or
+if nothing in it survives checking. Losing a report because a bonus paragraph
+failed would be a poor trade.
 
 </details>
 
 <br>
 
-## 💡 Examples
+## 🔒 Privacy
 
-**Starting something new**
+Keel reads your project and writes files. It sends nothing anywhere, with one
+exception you have to ask for twice.
+
+| | |
+|---|---|
+| **Network access** | None, ever, except an agent you selected running under `--ai` |
+| **Telemetry** | None |
+| **Accounts or keys** | None. Keel has no account and reads no API key |
+| **Core commands** | `new`, `inspect`, `document`, `check`, `doctor`, `add` are fully offline |
+
+`keel document --show-prompt` prints the whole thing without sending it, so you
+never have to take that on trust.
+
+> [!IMPORTANT]
+> Keel detects installed agents by reading `PATH`. It does not run them — not
+> even for a version string. Detection, selection and invocation are three
+> separate acts, and `keel document --no-ai` overrides all of them.
+
+<br>
+
+## ⚠️ What Keel cannot tell you
+
+Stated plainly, because a tool that reports its limits is easier to trust than
+one that does not.
+
+**It reads source, not behaviour.** Every relationship is a mention written in a
+file, at a line you can open. Keel does not know whether that line runs, how
+often, or in what order. Nothing here is a call graph.
+
+**Roles are partly naming.** A type conforming to SwiftUI's `View` is a view
+*from the code*. A type called `ArticleRepository` is a repository *because
+somebody named it one*, and Keel says which it had. It cannot recognise a
+repository that is called something else.
+
+**Ownership comes from folders.** Which feature a file belongs to is read from
+the directory layout, because with synchronized folder groups the project file
+says nothing about it. A project organised some other way gets `Undetermined`
+rather than an invented answer.
+
+**One module is one module.** Imports cannot show coupling inside a single target
+— that is what the type graph is for — and type references cannot see inside a
+package. Neither can see across a language boundary into Objective-C.
+
+**No build means no compiler.** Working on a project that does not compile is the
+point, and the cost is that Keel resolves names the way the language does
+*approximately*: a bare name reaches top-level types and nested ones only from
+inside their scope. Two types sharing a name resolve to one of them, and the
+finding says it was a name match rather than a resolution.
+
+**It has no opinion about your architecture.** It reports what is there. The only
+direction it will call wrong is one the project itself establishes — code in
+`Core` or `Shared` being depended on *by* features — plus cycles, which need no
+rule to be wrong. One feature using another is an edge, not a fault.
+
+<br>
+
+## 🏛 How Keel is built
+
+Deterministic analysis is the foundation. An AI layer may *interpret* those
+facts — it may never override them.
+
+```mermaid
+flowchart TD
+    CLI["⚓ keel"] --> Core["Deterministic Core"]
+
+    Core --> Gen["Generate"]
+    Core --> Ana["Analyze"]
+    Core --> Val["Validate"]
+
+    Gen --> Model["ProjectModel"]
+    Ana --> Model
+    Val --> Model
+
+    Model --> Out["Markdown / Project"]
+    Model -.optional, user-selected.-> AI["AI Layer"]
+    AI -.interpretation only.-> Check["Keel validation"]
+    Check -.-> Out
+
+    classDef core fill:#0A84FF,stroke:#0A5FCC,stroke-width:2px,color:#fff
+    classDef facts fill:#2EA043,stroke:#1F7A33,stroke-width:2px,color:#fff
+    classDef ai fill:#8957E5,stroke:#6B3FC7,stroke-width:2px,color:#fff,stroke-dasharray: 5 3
+    classDef out fill:#F05138,stroke:#C03D28,stroke-width:2px,color:#fff
+
+    class CLI,Core core
+    class Gen,Ana,Val,Model facts
+    class AI,Check ai
+    class Out out
+```
+
+<details>
+<summary><b>Building from source</b></summary>
+
+<br>
 
 ```bash
-keel new Bookshelf --yes
-cd Bookshelf
-open Bookshelf.xcodeproj          # builds and runs as generated
-keel add feature Library          # a second feature, shaped like the first
+git clone https://github.com/GRimAce11/Keel.git
+cd Keel
+swift build -c release
+cp .build/release/keel /usr/local/bin/
 ```
 
-**Picking up a project you did not write**
+Keel runs on macOS 13+, but **building** it needs Xcode 16.0 or newer, for Swift
+6.0 — which is why the Homebrew formula asks for macOS 14. The formula builds
+from source, and that build cannot happen on Ventura.
 
-```bash
-cd InheritedApp
-keel explore                   # walk through it without knowing the flags
-keel doctor                    # can this machine even build it?
-keel inspect                   # targets, structure, and the architecture it implies
-keel inspect --relationships   # what is made of what
-keel inspect --graph           # what depends on what, and any cycles
-keel check --explain           # what is already wrong with it, and why that is a rule
-keel document                  # PROJECT.md, to read on the train
-```
+Keel ships from its own tap rather than homebrew-core, which requires a
+self-submitted project to have 225 stars, 90 forks or 90 watchers. A tap is what
+Homebrew's own policy recommends until then.
 
-Everything there works on a project that does not currently compile — which is
-usually the state an inherited project is in.
-
-**Keeping it honest in CI**
-
-```yaml
-- run: keel check --strict          # fails on warnings too
-- run: keel document --check        # fails when PROJECT.md has drifted
-```
-
-Neither touches the network, needs an account, or invokes an agent.
+</details>
 
 <br>
 
@@ -804,50 +890,16 @@ Neither touches the network, needs an account, or invokes an agent.
 
 <br>
 
-## ⚠️ What Keel cannot tell you
-
-Stated plainly, because a tool that reports its limits is easier to trust than
-one that does not.
-
-**It reads source, not behaviour.** Every relationship is a mention written in
-a file, at a line you can open. Keel does not know whether that line runs, how
-often, or in what order. Nothing here is a call graph.
-
-**Roles are partly naming.** A type conforming to SwiftUI's `View` is a view
-*from the code*. A type called `ArticleRepository` is a repository *because
-somebody named it one*, and Keel says which it had. It cannot recognise a
-repository that is called something else.
-
-**Ownership comes from folders.** Which feature a file belongs to is read from
-the directory layout, because with synchronized folder groups the project file
-says nothing about it. A project organised some other way gets `Undetermined`
-rather than an invented answer.
-
-**One module is one module.** Imports cannot show coupling inside a single
-target — that is what the type graph is for — and type references cannot see
-inside a package. Neither can see across a language boundary into Objective-C.
-
-**No build means no compiler.** Working on a project that does not compile is
-the point, and the cost is that Keel resolves names the way the language does
-*approximately*: a bare name reaches top-level types and nested ones only from
-inside their scope. Two types sharing a name resolve to one of them, and the
-finding says it was a name match rather than a resolution.
-
-**It has no opinion about your architecture.** It reports what is there. The
-only direction it will call wrong is one the project itself establishes — code
-in `Core` or `Shared` being depended on *by* features — plus cycles, which need
-no rule to be wrong. One feature using another is an edge, not a fault.
-
 ## 🤝 Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — it lists the few things Keel
-refuses on principle (third-party dependencies, AI in a core command), so
-nobody builds something that was never going to land.
+refuses on principle (third-party dependencies, AI in a core command), so nobody
+builds something that was never going to land.
 
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Found a
-security problem? [SECURITY.md](SECURITY.md) explains how to report it
-privately — and what Keel is and is not allowed to do, which is most of what
-people want to know.
+security problem? [SECURITY.md](SECURITY.md) explains how to report it privately
+— and what Keel is and is not allowed to do, which is most of what people want to
+know.
 
 ```bash
 swift build
