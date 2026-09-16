@@ -94,6 +94,62 @@ struct ProjectDocumentTests {
         #expect(markdown.contains("No package dependencies."))
     }
 
+    @Test("The document draws the dependency graph the report already carries")
+    func drawsHowItFitsTogether() throws {
+        let (markdown, model) = try document()
+        let graph = model.dependencyGraph()
+
+        #expect(markdown.contains("## How it fits together"))
+
+        // A generated project has one feature, so nothing couples at feature
+        // scope and the partition diagram is drawn at module scope instead.
+        #expect(graph.edges(at: .feature).isEmpty)
+        #expect(markdown.contains("### Module dependencies"))
+        #expect(markdown.contains("### Layer dependencies"))
+
+        // Every arrow, and only arrows the graph reports.
+        for edge in graph.edges(at: .module) {
+            #expect(
+                markdown.contains("    \(edge.from) --> \(edge.to)"),
+                "module edge missing from the diagram: \(edge.from) -> \(edge.to)"
+            )
+        }
+        for edge in graph.edges(at: .layer) {
+            #expect(
+                markdown.contains("    \(edge.from) --> \(edge.to)"),
+                "layer edge missing from the diagram: \(edge.from) -> \(edge.to)"
+            )
+        }
+    }
+
+    @Test("The diagrams are fenced as mermaid, so GitHub renders them")
+    func diagramsAreMermaid() throws {
+        let (markdown, _) = try document()
+
+        let fences = markdown.components(separatedBy: "```mermaid").count - 1
+        #expect(fences == 2, "expected a partition diagram and a layer diagram")
+        #expect(markdown.contains("```mermaid\nflowchart TD"))
+    }
+
+    @Test("A scope the project has nothing to say at is left out of the section")
+    func omitsTheScopesWithNothingToSay() throws {
+        // No components means no feature folders, so nothing is divided into
+        // layers. The module diagram still has something to show, and the
+        // layer heading must not appear above an empty box.
+        let (markdown, model) = try document(components: [])
+        let graph = model.dependencyGraph()
+
+        #expect(!graph.edges(at: .module).isEmpty)
+        #expect(graph.edges(at: .layer).isEmpty)
+
+        #expect(markdown.contains("## How it fits together"))
+        #expect(markdown.contains("### Module dependencies"))
+        #expect(!markdown.contains("### Layer dependencies"))
+
+        let fences = markdown.components(separatedBy: "```mermaid").count - 1
+        #expect(fences == 1, "expected only the module diagram")
+    }
+
     // MARK: - Restraint
 
     @Test("A minimal project gets no claim the evidence does not support")

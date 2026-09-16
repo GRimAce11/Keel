@@ -237,6 +237,25 @@ struct ModelCoherenceTests {
         #expect(before.changes(to: after).contains { $0.contains("Settings → Articles") })
     }
 
+    @Test("A new dependency between modules is a change worth regenerating for")
+    func fingerprintNoticesModuleCoupling() throws {
+        // The diagram in "How it fits together" draws module edges, so a
+        // document whose diagram no longer matches the project has to come
+        // back stale. Before these were fingerprinted it did not.
+        let before = DocumentFingerprint(model: try scan())
+        let after = DocumentFingerprint(model: try scan { root in
+            try write(
+                "import SwiftUI\n\nstruct ArticleBadge: View {\n"
+                    + "    let article: Article\n"
+                    + "    var body: some View { Text(article.title) }\n}\n",
+                to: "Probe/Shared/UI/ArticleBadge.swift",
+                in: root
+            )
+        })
+
+        #expect(before.changes(to: after).contains { $0.contains("Shared → Features") })
+    }
+
     @Test("A fingerprint from an older Keel still reads, as stale rather than unreadable")
     func fingerprintDecodesOlderDocuments() throws {
         // Written before featureDependencies existed. Refusing it would turn
@@ -249,6 +268,9 @@ struct ModelCoherenceTests {
         let decoded = try #require(DocumentFingerprint.extract(from: older))
         #expect(decoded.features == ["Articles"])
         #expect(decoded.featureDependencies.isEmpty)
+        // Added later still, when the document started drawing them.
+        #expect(decoded.moduleDependencies.isEmpty)
+        #expect(decoded.layerDependencies.isEmpty)
     }
 
     // MARK: - The line AI may not cross

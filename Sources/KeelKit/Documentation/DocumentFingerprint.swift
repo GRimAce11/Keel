@@ -25,11 +25,21 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
     /// are not here — those shift on every ordinary edit and would make every
     /// document permanently stale.
     public let featureDependencies: [String]
+    /// Which modules depend on which, and which layers do, as sorted `A → B`
+    /// pairs.
+    ///
+    /// Here for the same reason as the feature pairs, and added when the
+    /// document started drawing them: `How it fits together` renders both, so
+    /// a document whose diagram no longer matches the project has to come back
+    /// stale. Watching only features would have let a module diagram rot while
+    /// `--check` reported the file current.
+    public let moduleDependencies: [String]
+    public let layerDependencies: [String]
     public let swiftFileCount: Int
 
     private enum CodingKeys: String, CodingKey {
         case features, modules, dependencies, targets, architecture
-        case featureDependencies, swiftFileCount
+        case featureDependencies, moduleDependencies, layerDependencies, swiftFileCount
     }
 
     /// Decoded leniently, because a document written by an older Keel has no
@@ -44,10 +54,14 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
         architecture = try container.decode([String: String].self, forKey: .architecture)
         featureDependencies =
             (try? container.decode([String].self, forKey: .featureDependencies)) ?? []
+        moduleDependencies =
+            (try? container.decode([String].self, forKey: .moduleDependencies)) ?? []
+        layerDependencies =
+            (try? container.decode([String].self, forKey: .layerDependencies)) ?? []
         swiftFileCount = try container.decode(Int.self, forKey: .swiftFileCount)
     }
 
-    public init(model: ProjectModel) {
+    public init(model: ProjectModel, graph: DependencyGraph? = nil) {
         features = model.features.map(\.name).sorted()
         modules = model.modules.map(\.name).sorted()
         dependencies = model.dependencies.map(\.name).sorted()
@@ -56,10 +70,15 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
             model.architecture.findings.map { ($0.dimension, $0.value) },
             uniquingKeysWith: { first, _ in first }
         )
-        featureDependencies = model.dependencyGraph()
-            .edges(at: .feature)
-            .map { "\($0.from) → \($0.to)" }
-            .sorted()
+        let dependencyGraph = graph ?? model.dependencyGraph()
+        func pairs(at scope: DependencyScope) -> [String] {
+            dependencyGraph.edges(at: scope)
+                .map { "\($0.from) → \($0.to)" }
+                .sorted()
+        }
+        featureDependencies = pairs(at: .feature)
+        moduleDependencies = pairs(at: .module)
+        layerDependencies = pairs(at: .layer)
         swiftFileCount = model.source.swiftFileCount
     }
 
@@ -102,6 +121,12 @@ public struct DocumentFingerprint: Codable, Sendable, Equatable {
         changes += difference(targets, current.targets, noun: "target")
         changes += difference(
             featureDependencies, current.featureDependencies, noun: "feature dependency"
+        )
+        changes += difference(
+            moduleDependencies, current.moduleDependencies, noun: "module dependency"
+        )
+        changes += difference(
+            layerDependencies, current.layerDependencies, noun: "layer dependency"
         )
 
         for (dimension, value) in architecture.sorted(by: { $0.key < $1.key }) {

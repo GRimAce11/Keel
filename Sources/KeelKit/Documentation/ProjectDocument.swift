@@ -61,10 +61,15 @@ public struct ProjectDocument {
 
         if let interpretation { sections.append(render(interpretation)) }
 
+        // Built once and handed down. Two sections below want it, and
+        // `dependencyGraph()` builds a fresh graph every time it is asked.
+        let graph = model.dependencyGraph()
+
         sections += [
             atAGlance(),
             architecture(),
             structure(),
+            fitsTogether(graph),
             workingOnIt(),
             targets(),
             dependencies(),
@@ -75,7 +80,7 @@ public struct ProjectDocument {
         // Last, and invisible when rendered: what this document was written
         // about, so `--check` can say what changed rather than only that
         // something did.
-        sections.append(DocumentFingerprint(model: model).embedded())
+        sections.append(DocumentFingerprint(model: model, graph: graph).embedded())
         sections.append(footer())
 
         return sections.joined(separator: "\n\n") + "\n"
@@ -306,6 +311,67 @@ public struct ProjectDocument {
 
         guard !parts.isEmpty else { return nil }
         return "## Working on this project\n\n" + parts.joined(separator: "\n\n")
+    }
+
+    // MARK: How it fits together
+
+    /// The dependency graph as pictures: how the project is partitioned, and
+    /// how a request moves through one part of it.
+    ///
+    /// Two scopes rather than one, because they answer different questions. A
+    /// reader asking whether `Core` may reach a feature is asking about
+    /// partitioning; a reader asking where a network call belongs is asking
+    /// about layers. Neither answers for the other, and either is left out
+    /// when the project has nothing to say at that scope.
+    private func fitsTogether(_ graph: DependencyGraph) -> String? {
+        // Features when features couple to one another, modules otherwise.
+        // Feature scope makes the more specific claim, so it wins when it has
+        // one to make.
+        let partition: DependencyScope = graph.edges(at: .feature).isEmpty ? .module : .feature
+
+        let parts = [
+            diagram(at: partition, in: graph, caption: "What depends on what."),
+            diagram(at: .layer, in: graph, caption: "How a request moves through a feature."),
+        ].compactMap { $0 }
+
+        guard !parts.isEmpty else { return nil }
+
+        let lead = "## How it fits together\n\n"
+            + "Read from imports and type references, the same links "
+            + "`keel inspect --graph` reports. Every arrow below can be unfolded "
+            + "back into the lines that produced it."
+
+        return ([lead] + parts).joined(separator: "\n\n")
+    }
+
+    private func diagram(
+        at scope: DependencyScope,
+        in graph: DependencyGraph,
+        caption: String
+    ) -> String? {
+        let heading = "### \(scope.displayName) dependencies"
+
+        switch ArchitectureDiagram.at(scope, in: graph) {
+        case .nothing:
+            return nil
+
+        case .tooLarge(let count):
+            // Said rather than truncated. A diagram missing a third of its
+            // nodes does not look like one.
+            return heading + "\n\n"
+                + "\(count) \(scope.displayName.lowercased())s depend on one another — "
+                + "too many to read as a diagram. `keel inspect --graph` reports them "
+                + "a node at a time."
+
+        case .drawn(let drawn):
+            var section = "\(heading)\n\n\(caption)\n\n\(drawn.mermaid())"
+            if !drawn.looping.isEmpty {
+                let names = drawn.nodes.filter { drawn.looping.contains($0) }
+                section += "\n\nOutlined in red: "
+                    + "\(Prose.list(names.map { "`\($0)`" })) sit on a cycle."
+            }
+            return section
+        }
     }
 
     // MARK: Structure
