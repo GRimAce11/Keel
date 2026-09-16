@@ -82,9 +82,15 @@ Each takes a path and defaults to the working directory. `--help` on any of them
 - run: keel document --check        # fails when PROJECT.md has drifted
 ```
 
-`diff` is the one to reach for on a codebase you inherited: `check --strict`
-fails on everything already there, while `diff` fails only on what this branch
-added. Adding a feature is a change; adding a cycle is a regression.
+On a codebase you inherited, `check --strict` fails on everything already
+there. Two ways round that, and you can use both:
+
+```bash
+keel check --write-baseline   # accept what is there, report only what is new
+keel diff origin/main..HEAD   # fail only on what this branch made worse
+```
+
+Adding a feature is a change; adding a cycle is a regression.
 
 None of them touches the network, needs an account, or invokes an agent.
 

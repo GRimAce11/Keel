@@ -30,6 +30,15 @@ struct Check: ParsableCommand {
     @Flag(name: .customLong("interactive"), help: "Walk the findings one at a time.")
     var interactive = false
 
+    @Flag(
+        name: .customLong("write-baseline"),
+        help: "Record today's findings as accepted, and report only new ones from now on."
+    )
+    var writeBaseline = false
+
+    @Flag(name: .customLong("no-baseline"), help: "Report everything, ignoring any baseline.")
+    var noBaseline = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -42,7 +51,18 @@ struct Check: ParsableCommand {
             throw ExitCode.failure
         }
 
-        let diagnostics = ProjectChecker(model: model).check()
+        let everything = ProjectChecker(model: model).check()
+
+        if writeBaseline {
+            try record(everything, at: root, console: console)
+            return
+        }
+
+        // A baseline is found, not configured. A project either has one or it
+        // does not, which keeps the common case flagless.
+        let baseline = noBaseline ? nil : CheckBaseline.load(from: root)
+        let outcome = baseline?.apply(to: everything)
+        let diagnostics = outcome?.remaining ?? everything
 
         if json {
             let encoder = JSONEncoder()
@@ -57,10 +77,55 @@ struct Check: ParsableCommand {
             render(diagnostics, for: model, console: console)
         }
 
+        if let outcome, !json { reportBaseline(outcome, console: console) }
+
         // A gate is only useful if it can fail. Warnings do not fail a build by
-        // default, because most of them are inferences.
+        // default, because most of them are inferences. A stale baseline never
+        // fails: punishing somebody for fixing something is how a tool gets
+        // switched off.
         let failed = !diagnostics.errors.isEmpty || (strict && !diagnostics.isEmpty)
         if failed { throw ExitCode.failure }
+    }
+
+    // MARK: - Baseline
+
+    private func record(
+        _ diagnostics: [Diagnostic],
+        at root: URL,
+        console: Console
+    ) throws {
+        let baseline = CheckBaseline(recording: diagnostics)
+        do {
+            try baseline.write(to: root)
+        } catch {
+            console.error("Could not write \(CheckBaseline.fileName): \(error.localizedDescription)")
+            throw ExitCode.failure
+        }
+
+        console.success("Wrote \(CheckBaseline.fileName)")
+        console.detail(
+            "\(count(diagnostics.count, "finding")) accepted across "
+                + "\(count(baseline.accepted.count, "file-and-rule pair")). "
+                + "New findings will be reported."
+        )
+        console.detail("Commit it, so everyone gates on the same starting point.")
+    }
+
+    private func reportBaseline(_ outcome: CheckBaseline.Outcome, console: Console) {
+        guard outcome.accepted > 0 || outcome.isStale else { return }
+
+        if outcome.accepted > 0 {
+            // Counted, never silent. A suppressed finding nobody can see is a
+            // lie about the state of the project.
+            console.detail("\(count(outcome.accepted, "finding")) accepted by the baseline.")
+        }
+        if outcome.isStale {
+            console.detail(
+                "\(count(outcome.stale.count, "baseline entry")) no longer matches — "
+                    + "fixed since it was recorded."
+            )
+            console.detail("Run `keel check --write-baseline` to record that.")
+        }
     }
 
     // MARK: - Report

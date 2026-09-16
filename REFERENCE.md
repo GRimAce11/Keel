@@ -290,6 +290,28 @@ dependency path, and the rule's rationale; it changes nothing about the exit
 code, and falls through to the plain report when there is no terminal, so a stray
 flag in CI never waits for somebody who is not there.
 
+### Adopting it on a codebase that already fails
+
+```bash
+keel check --write-baseline    # record today's findings as accepted
+keel check                     # .keel/baseline.json is used when present
+keel check --no-baseline       # report everything again
+```
+
+The baseline is found, not configured: a project either has
+`.keel/baseline.json` or it does not.
+
+Findings are matched on **rule and file, never on the line**. Line numbers move
+on every unrelated edit, and a baseline keyed on them goes stale the first time
+somebody adds an import — the same reason `document --check` leaves reference
+counts out of its fingerprint. The recorded count matters, though: a sixteenth
+finding in a file that had fifteen is a new one.
+
+Accepted findings are counted, never silently dropped — a suppressed finding
+nobody can see is a lie about the state of the project. And a baseline entry
+that no longer matches is reported as fixed and **does not fail**; punishing
+somebody for fixing something is how a tool gets switched off.
+
 Keel's own generated projects pass every rule, and a test asserts it — shipping a
 generator whose output fails its own checker would make the checker impossible to
 take seriously.
