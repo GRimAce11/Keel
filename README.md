@@ -66,6 +66,7 @@ reason to reach for Keel is the codebase you have already got.
 | `keel explore` | Walk through a project's architecture interactively |
 | `keel inspect` | Structure, dependencies, relationships, architecture |
 | `keel check` | Validate against the project's real architecture boundaries |
+| `keel diff` | What this branch changed architecturally, and what it made worse |
 | `keel document` | Write `PROJECT.md`, diagrams included |
 | `keel doctor` | Diagnose the toolchain and project |
 | `keel new` | Create a new iOS project |
@@ -77,11 +78,19 @@ Each takes a path and defaults to the working directory. `--help` on any of them
 ## In CI
 
 ```yaml
-- run: keel check --strict          # fails on warnings too
+- run: keel diff origin/main..HEAD  # fails when this branch made it worse
 - run: keel document --check        # fails when PROJECT.md has drifted
 ```
 
-Neither touches the network, needs an account, or invokes an agent.
+`diff` is the one to reach for on a codebase you inherited: `check --strict`
+fails on everything already there, while `diff` fails only on what this branch
+added. Adding a feature is a change; adding a cycle is a regression.
+
+None of them touches the network, needs an account, or invokes an agent.
+
+> [!NOTE]
+> `keel diff` needs history. CI checkouts default to a shallow clone — set
+> `fetch-depth: 0` on `actions/checkout`, or it will tell you to.
 
 ## AI is optional
 
