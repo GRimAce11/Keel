@@ -346,6 +346,62 @@ struct AIDocumentationTests {
         #expect(prompt.contains("Undetermined (undetermined)"))
     }
 
+    @Test("What Keel already wrote is sent, so the agent does not write it twice")
+    func sendsWhatIsAlreadyWritten() throws {
+        let model = try model()
+        let prompt = DocumentationPrompt(model: model).text()
+        let context = ProjectContext(model: model)
+
+        #expect(prompt.contains("ALREADY WRITTEN"))
+        #expect(prompt.contains("Do not repeat what Keel has already written"))
+
+        // Verbatim, because paraphrase is exactly what the agent must be able
+        // to recognise. The prompt asks for `conventions` by name, so a
+        // convention the document already states and the prompt withholds is
+        // one the reader meets twice.
+        let conventions = context.conventions()
+        #expect(!conventions.isEmpty, "the fixture no longer states any convention")
+        for convention in conventions {
+            #expect(prompt.contains(convention), "withheld from the prompt: \(convention)")
+        }
+
+        for rule in context.architectureRules() {
+            #expect(prompt.contains(rule), "withheld from the prompt: \(rule)")
+        }
+    }
+
+    @Test("Concerns keel check already found are sent as things not to restate")
+    func sendsKnownConcerns() throws {
+        let model = try model()
+        let prompt = DocumentationPrompt(model: model).text()
+        let concerns = ProjectContext(model: model).concerns()
+
+        // A generated project is clean, and saying so is the point: an agent
+        // told only silence cannot tell a checked project from an unchecked
+        // one, and fills `risks` with caution it has no basis for.
+        if concerns.isEmpty {
+            #expect(prompt.contains("Known concerns: none."))
+        } else {
+            for concern in concerns.prefix(5) {
+                #expect(
+                    prompt.contains(concern.message),
+                    "withheld from the prompt: \(concern.message)"
+                )
+            }
+        }
+    }
+
+    @Test("The prompt carries the imports the document's own table shows")
+    func sendsMostImportedModules() throws {
+        let model = try model()
+        let prompt = DocumentationPrompt(model: model).text()
+
+        #expect(prompt.contains("Most imported modules:"))
+        for module in model.analysis.importCounts().prefix(3) {
+            #expect(prompt.contains(module.module), "withheld from the prompt: \(module.module)")
+        }
+    }
+
     // MARK: Rendering
 
     @Test("An interpretation is fenced, attributed, and marked as unchecked")

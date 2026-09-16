@@ -109,6 +109,31 @@ struct PrivacyTests {
         }
     }
 
+    @Test("What Keel already wrote carries no source either")
+    func alreadyWrittenIsDerivedToo() throws {
+        let secret = "sk-live-\(UUID().uuidString)"
+
+        try withProjectContainingSecret(secret) { _, model in
+            let prompt = DocumentationPrompt(model: model).text()
+
+            // The header, not the rule that names it — both spell the words,
+            // and only one of them starts the section.
+            guard let header = prompt.range(of: "\nALREADY WRITTEN\n") else {
+                Issue.record("the prompt no longer carries what Keel already wrote")
+                return
+            }
+
+            // Newest part of the prompt, and the one most likely to grow a
+            // field that quotes the project instead of describing it.
+            let written = String(prompt[header.upperBound...])
+            #expect(!written.contains(secret))
+            #expect(!written.contains("apiKey"))
+            for fragment in ["import SwiftUI", "import Foundation", "func ", "static let", "var body"] {
+                #expect(!written.contains(fragment), "source fragment in the exclusions: \(fragment)")
+            }
+        }
+    }
+
     // MARK: - Nothing runs unasked
 
     @Test("No core command touches the AI layer")

@@ -51,7 +51,7 @@ public struct DocumentationPrompt {
         Plain sentences only. No Markdown, no headings, no bullet characters — \
         the formatting is not yours to choose.
 
-        Two rules about what you may say.
+        Three rules about what you may say.
 
         Only name types, features and folders that appear in the facts below. \
         A name that is not there will be dropped, and the sentence with it.
@@ -63,15 +63,28 @@ public struct DocumentationPrompt {
         the project already does — it will be published under a heading that \
         says it is advice.
 
+        Do not repeat what Keel has already written. Everything under ALREADY \
+        WRITTEN is in the document already, under its own heading and presented \
+        as established. Saying it again — in other words, or under a different \
+        key — puts one point in the document twice, once as something Keel \
+        measured and once as your suggestion, and the reader cannot tell which \
+        of the two to trust. Add what those lines do not cover, or leave the \
+        key out.
+
         FACTS
 
         \(facts())
+
+        ALREADY WRITTEN
+
+        \(alreadyWritten())
         """
     }
 
-    /// How many edges of one kind to send. A prompt listing every reference in
-    /// a large project would be mostly noise, and the agent is being asked for
-    /// a reading rather than a recount.
+    /// How many of one kind of thing to send — edges, findings, concerns. A
+    /// prompt listing every reference in a large project would be mostly
+    /// noise, and the agent is being asked for a reading rather than a
+    /// recount.
     private static let edgeLimit = 25
 
     // MARK: - Facts
@@ -146,6 +159,15 @@ public struct DocumentationPrompt {
         if !patterns.isEmpty {
             lines.append("Patterns in use: " + patterns
                 .map { "\($0.name) (\($0.count))" }
+                .joined(separator: ", "))
+        }
+
+        // The same ten the document's "Most imported" table shows, so the
+        // agent reads the project's shape from the list the reader will see.
+        let imports = model.analysis.importCounts().prefix(10)
+        if !imports.isEmpty {
+            lines.append("Most imported modules: " + imports
+                .map { "\($0.module) (\($0.files))" }
                 .joined(separator: ", "))
         }
 
@@ -230,5 +252,56 @@ public struct DocumentationPrompt {
         }
 
         return lines
+    }
+
+    // MARK: - Already written
+
+    /// What the document already says, sent so that the agent does not say it
+    /// again.
+    ///
+    /// Conclusions rather than facts, and Keel's own: every line here is
+    /// rendered into `PROJECT.md` under a heading that presents it as
+    /// established. They are sent as exclusions, not as material to work from.
+    ///
+    /// Conventions and concerns are the two that matter, because the prompt
+    /// asks for both by name. An agent never told what `keel check` already
+    /// reported writes a `risks` list restating it, and the reader meets the
+    /// same finding twice — once under "Known concerns" as measured, once
+    /// under "Risks" marked as a suggestion — with nothing to say which is
+    /// which. Withholding them does not prevent the overlap; it only prevents
+    /// the agent from noticing it.
+    private func alreadyWritten() -> String {
+        let context = ProjectContext(model: model)
+        var lines: [String] = []
+
+        func section(_ title: String, _ items: [String]) {
+            guard !items.isEmpty else { return }
+            lines.append("\(title):")
+            lines += items.prefix(Self.edgeLimit).map { "- \($0)" }
+            lines.append("")
+        }
+
+        section("Conventions the document states", context.conventions())
+        section("Architecture rules the document states", context.architectureRules())
+        section("Prohibitions the document states", context.prohibitions())
+
+        // Stated either way. "Keel found nothing" is itself worth knowing:
+        // told only silence, an agent cannot tell an unchecked project from a
+        // clean one, and tends to fill `risks` with generic caution.
+        let concerns = context.concerns()
+        if concerns.isEmpty {
+            lines.append("Known concerns: none. `keel check` reports nothing.")
+        } else {
+            lines.append("Known concerns the document already lists:")
+            lines += concerns.prefix(Self.edgeLimit).map { concern in
+                let location = concern.location.map { " at \($0)" } ?? ""
+                return "- [\(concern.severity.displayName)] \(concern.message)\(location)"
+            }
+            if concerns.count > Self.edgeLimit {
+                lines.append("- and \(concerns.count - Self.edgeLimit) more")
+            }
+        }
+
+        return lines.joined(separator: "\n")
     }
 }
