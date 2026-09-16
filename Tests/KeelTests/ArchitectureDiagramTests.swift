@@ -136,6 +136,54 @@ struct ArchitectureDiagramTests {
         #expect(mermaid.contains("Say 'Hello'"))
     }
 
+    // MARK: - Tangles
+
+    @Test("Two nodes in a loop still draw — that is a picture, not a tangle")
+    func smallLoopsStillDraw() throws {
+        let diagram = try drawn([("A", "B"), ("B", "A")])
+        #expect(diagram.looping == ["A", "B"])
+    }
+
+    @Test("Three nodes in a loop still draw — a triangle is legible")
+    func trianglesStillDraw() throws {
+        let diagram = try drawn([("A", "B"), ("B", "C"), ("C", "A")])
+        #expect(diagram.nodes.count == 3)
+    }
+
+    @Test("Four nodes that all reach each other are said, not drawn")
+    func refusesToDrawAKnot() {
+        // The case that shipped broken: seven features with five in one knot
+        // sailed past the node limit and rendered as a hairball. Node count
+        // was the wrong measure.
+        let pairs = [("A", "B"), ("B", "A"), ("B", "C"), ("C", "B"), ("C", "D"), ("D", "A")]
+
+        guard case .tooTangled(let knot, let total) = ArchitectureDiagram.at(.module, in: graph(pairs)) else {
+            Issue.record("drew a diagram of a four-node knot")
+            return
+        }
+        #expect(knot == 4)
+        #expect(total == 4)
+    }
+
+    @Test("Separate small loops are separate, and still draw")
+    func doesNotMergeUnrelatedLoops() throws {
+        // Two two-node loops are two small knots. Counting every looping node
+        // together would call this a four-node tangle and refuse a diagram
+        // well worth having.
+        let diagram = try drawn([("A", "B"), ("B", "A"), ("C", "D"), ("D", "C")])
+
+        #expect(diagram.looping.count == 4)
+        #expect(ArchitectureDiagram.largestKnot(in: [["A", "B"], ["C", "D"]]) == 2)
+    }
+
+    @Test("Cycles sharing a node are one knot")
+    func mergesOverlappingLoops() {
+        #expect(ArchitectureDiagram.largestKnot(in: [["A", "B"], ["B", "C"]]) == 3)
+        #expect(ArchitectureDiagram.largestKnot(in: []) == 0)
+        // Order must not matter: merging has to fold a group already recorded.
+        #expect(ArchitectureDiagram.largestKnot(in: [["A", "B"], ["C", "D"], ["B", "C"]]) == 4)
+    }
+
     // MARK: - Cycles
 
     @Test("Nodes on a cycle are marked, and only those")

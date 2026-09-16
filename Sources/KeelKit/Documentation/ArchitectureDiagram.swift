@@ -34,11 +34,31 @@ public struct ArchitectureDiagram {
     /// dependency diagram worth colouring.
     public let looping: Set<String>
 
+    /// How many nodes may depend on one another in both directions before the
+    /// picture stops being one.
+    ///
+    /// `flowchart TD` places nodes in ranks, top to bottom, which needs a
+    /// direction of flow to exist. A node with arrows both in and out cannot
+    /// be ranked, and once several of them are mutually reachable the layout
+    /// has nothing to sort by and draws a tangle.
+    ///
+    /// Three is still legible — it is a triangle. Four is where it stops being
+    /// a diagram, so four is where Keel stops drawing one.
+    ///
+    /// This is the measure the node limit was missing. A seven-node graph with
+    /// five features in one knot is unreadable while a twenty-node tree is
+    /// fine, and counting nodes cannot tell those apart.
+    static let tangleLimit = 4
+
     public enum Result {
         case drawn(ArchitectureDiagram)
         /// Readable as a report but not as a picture. Carries the count so the
         /// document can say how big rather than only that it gave up.
         case tooLarge(nodeCount: Int)
+        /// So much of it depends on itself that ranking is impossible. Carries
+        /// both counts, because "five of six" is the finding — a reader learns
+        /// more from that sentence than from the drawing it replaces.
+        case tooTangled(knot: Int, total: Int)
         /// Fewer than two nodes, or no edges between them. A scope the project
         /// is not organised at produces no section rather than an empty box.
         case nothing
@@ -56,14 +76,45 @@ public struct ArchitectureDiagram {
         guard names.count > 1 else { return .nothing }
         guard names.count <= nodeLimit else { return .tooLarge(nodeCount: names.count) }
 
+        let cycles = graph.cycles(at: scope)
+        let knot = largestKnot(in: cycles)
+        guard knot < tangleLimit else {
+            return .tooTangled(knot: knot, total: names.count)
+        }
+
         return .drawn(
             ArchitectureDiagram(
                 scope: scope,
                 edges: edges,
                 nodes: names.sorted(),
-                looping: Set(graph.cycles(at: scope).flatMap { $0 })
+                looping: Set(cycles.flatMap { $0 })
             )
         )
+    }
+
+    /// The largest set of nodes that all reach one another, approximated by
+    /// merging cycles that share a node.
+    ///
+    /// Merging matters. Two separate two-node loops are two small knots and
+    /// draw perfectly well; counting every looping node together would call
+    /// that a four-node tangle and refuse a diagram worth having.
+    static func largestKnot(in cycles: [[String]]) -> Int {
+        var groups: [Set<String>] = []
+
+        for cycle in cycles {
+            var merged = Set(cycle)
+            var rest: [Set<String>] = []
+            for group in groups {
+                if group.isDisjoint(with: merged) {
+                    rest.append(group)
+                } else {
+                    merged.formUnion(group)
+                }
+            }
+            groups = rest + [merged]
+        }
+
+        return groups.map(\.count).max() ?? 0
     }
 
     // MARK: - Drawing

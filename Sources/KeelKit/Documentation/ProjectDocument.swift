@@ -355,6 +355,18 @@ public struct ProjectDocument {
         case .nothing:
             return nil
 
+        case .tooTangled(let knot, let total):
+            // The sentence is the finding. A project where five of six layers
+            // depend on one another in both directions is worth knowing about,
+            // and saying it plainly beats drawing a knot the reader has to
+            // decode before reaching the same conclusion.
+            let noun = scope.displayName.lowercased()
+            return heading + "\n\n"
+                + "\(knot) of \(total) \(noun)s depend on one another in both directions. "
+                + "A flowchart of that is a tangle rather than a picture, so Keel does not draw "
+                + "one. `keel inspect --graph` lists the edges and `keel check` reports the "
+                + "cycles."
+
         case .tooLarge(let count):
             // Said rather than truncated. A diagram missing a third of its
             // nodes does not look like one.
