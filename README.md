@@ -92,6 +92,9 @@ keel diff origin/main..HEAD   # fail only on what this branch made worse
 
 Adding a feature is a change; adding a cycle is a regression.
 
+Add `--github` to either and the findings land on the changed lines of the pull
+request instead of only in the log.
+
 None of them touches the network, needs an account, or invokes an agent.
 
 > [!NOTE]

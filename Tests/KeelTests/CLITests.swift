@@ -203,6 +203,7 @@ struct CLITests {
             ["check", path, "--strict"],
             ["check", path, "--explain"],
             ["check", path, "--json"],
+            ["check", path, "--github"],
             ["check", path, "--interactive"],
             ["explore", path],
             ["document", path, "--stdout"],

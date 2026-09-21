@@ -24,6 +24,12 @@ struct Check: ParsableCommand {
     @Flag(name: .customLong("json"), help: "Emit JSON instead of a report.")
     var json = false
 
+    @Flag(
+        name: .customLong("github"),
+        help: "Emit GitHub Actions annotations, so findings land on the changed lines."
+    )
+    var github = false
+
     @Flag(name: .customLong("explain"), help: "Say why each finding exists and why it carries its severity.")
     var explain = false
 
@@ -68,6 +74,8 @@ struct Check: ParsableCommand {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             print(String(decoding: try encoder.encode(diagnostics), as: UTF8.self))
+        } else if github {
+            for line in GitHubAnnotations.lines(for: diagnostics) { print(line) }
         } else if interactive, InteractivePrompt.isAvailable {
             walk(diagnostics, for: model, console: console)
         } else {
@@ -77,7 +85,9 @@ struct Check: ParsableCommand {
             render(diagnostics, for: model, console: console)
         }
 
-        if let outcome, !json { reportBaseline(outcome, console: console) }
+        // Neither machine format gets the baseline note: JSON has a shape to
+        // keep, and an annotation stream is read by GitHub, not by a person.
+        if let outcome, !json, !github { reportBaseline(outcome, console: console) }
 
         // A gate is only useful if it can fail. Warnings do not fail a build by
         // default, because most of them are inferences. A stale baseline never

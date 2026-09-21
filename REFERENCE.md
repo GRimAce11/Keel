@@ -243,6 +243,7 @@ keel check --strict       # warnings fail too, for CI
 keel check --explain      # why each finding exists, and why it has that severity
 keel check --interactive  # walk the findings one at a time
 keel check --json
+keel check --github       # annotations, for a pull request
 keel doctor               # can this machine build what Keel generates?
 ```
 
@@ -329,6 +330,7 @@ keel diff                      # this working tree against HEAD
 keel diff main                 # against a branch
 keel diff origin/main..HEAD    # what a pull request is
 keel diff --json
+keel diff --github
 ```
 
 `check` answers "what is wrong with this codebase". `diff` answers "what did
@@ -350,6 +352,25 @@ reported twice.
 Each revision is read in a temporary worktree and removed afterwards; your
 working tree is never touched. `diff` needs history, so a shallow CI checkout
 has to set `fetch-depth: 0` — it says so when it cannot see far enough back.
+
+### Annotations
+
+`--github` emits GitHub Actions workflow commands instead of a report, so
+findings land on the changed lines of a pull request rather than in a log
+nobody opens:
+
+```text
+::error file=Probe/Shared/UI/ArticleBadge.swift,line=4,title=shared-code-depends-on-feature::…
+::warning file=Probe/Features/Articles/Presentation/AlphaView.swift,line=4,title=view-reaches-networking::…
+```
+
+Severity carries across unchanged — an annotation that softened an error would
+disagree with the exit code, which is what actually gates the build. On `diff`,
+a regression is an error whatever severity the rule behind it carries, a change
+is a warning, and a fix is not annotated: there is no line to put it on. A
+finding with nowhere to point is still emitted without a file, annotating the
+run rather than a line, so the annotation stream never quietly disagrees with
+the report.
 
 ---
 

@@ -27,6 +27,12 @@ struct Diff: ParsableCommand {
     @Flag(name: .customLong("json"), help: "Emit the delta as JSON.")
     var asJSON = false
 
+    @Flag(
+        name: .customLong("github"),
+        help: "Emit GitHub Actions annotations, so regressions land on the changed lines."
+    )
+    var github = false
+
     func run() throws {
         let console = Console.shared
         let root = URL(fileURLWithPath: path ?? FileManager.default.currentDirectoryPath)
@@ -46,6 +52,8 @@ struct Diff: ParsableCommand {
 
         if asJSON {
             try emitJSON(delta, comparison: comparison)
+        } else if github {
+            for line in GitHubAnnotations.lines(for: delta) { print(line) }
         } else {
             render(delta, comparison: comparison, console: console)
         }
