@@ -284,6 +284,12 @@ That is also why a **feature cycle is a warning**. A cycle needs no rule to be
 wrong, but what counts as a feature comes from folder names — so the grouping is
 conventional even though the references are not.
 
+A rule's rationale is printed **once per run of findings**, not once per
+finding. Findings are ordered by rule, so the paragraph sits at the head of the
+group and the `[rule-id]` on every finding says which group it belongs to — a
+rule that fires forty times would otherwise print forty copies of the same
+paragraph, on exactly the inherited codebase this command is for.
+
 `--explain` prints why each rule exists and why the finding carries the severity
 it does. `--interactive` walks the findings one at a time, offering evidence, the
 dependency path, and the rule's rationale; it changes nothing about the exit

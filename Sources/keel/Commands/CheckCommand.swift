@@ -139,6 +139,12 @@ struct Check: ParsableCommand {
             return
         }
 
+        // A rule that fires forty times should not print forty copies of its
+        // own rationale. Findings are ordered by rule, so the paragraph goes
+        // at the head of each run and the `[rule-id]` tag on every finding
+        // says which run this one belongs to.
+        var explained: Set<String> = []
+
         for (index, diagnostic) in diagnostics.enumerated() {
             // A rule between findings rather than only after them: once a
             // finding runs to six lines, a blank line stops separating
@@ -146,16 +152,33 @@ struct Check: ParsableCommand {
             if index > 0 { console.rule() }
 
             headline(diagnostic, console: console)
-            if let detail = diagnostic.detail {
+            if let detail = diagnostic.detail,
+               !isRepeatedRationale(detail, for: diagnostic, seen: &explained) {
                 console.paragraph(detail)
             }
             renderEvidence(diagnostic, console: console)
             if explain { renderExplanation(diagnostic, console: console) }
             console.detail("[\(diagnostic.rule)]")
-            console.write()
+            // No trailing blank: `heading` opens with one of its own, and two
+            // in a row read as a gap rather than a separator.
+            if index < diagnostics.count - 1 { console.write() }
         }
 
         summarise(diagnostics, console: console)
+    }
+
+    /// Whether this detail is the rule's own rationale, already printed.
+    ///
+    /// Only the shared rationale is suppressed. A detail written for one
+    /// finding — "Add `import SwiftData` to this file" — names that file and
+    /// is printed every time.
+    private func isRepeatedRationale(
+        _ detail: String,
+        for diagnostic: Diagnostic,
+        seen: inout Set<String>
+    ) -> Bool {
+        guard detail == CheckRules.rule(diagnostic.rule)?.explanation else { return false }
+        return !seen.insert(diagnostic.rule).inserted
     }
 
     private func headline(_ diagnostic: Diagnostic, console: Console) {

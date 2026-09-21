@@ -217,6 +217,66 @@ struct CLITests {
         }
     }
 
+    @Test("A rule's rationale is printed once, however many times it fires")
+    func explainsEachRuleOnce() throws {
+        // The thing `check` is for is an inherited codebase with forty
+        // findings. Reprinting the same paragraph forty times is how a report
+        // that long stops being read at all.
+        let destination = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("keel-repeat-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let outcome = try ProjectGenerator(
+            configuration: ProjectConfiguration(
+                name: try ProjectName("Probe"),
+                bundleIdentifierPrefix: "com.acme",
+                components: Set(Component.allCases)
+            ),
+            console: Console(useColor: false)
+        ).generate(in: destination, initializeGit: false)
+        let root = outcome.projectDirectory
+
+        // Four screens, each holding the network: one rule, four findings.
+        for name in ["Alpha", "Beta", "Gamma", "Delta"] {
+            try """
+                import SwiftUI
+
+                struct \(name)View: View {
+                    let client: APIClient
+                    var body: some View { Text("\(name)") }
+                }
+
+                """.write(
+                    to: root.appendingPathComponent(
+                        "Probe/Features/Articles/Presentation/\(name)View.swift"
+                    ),
+                    atomically: true,
+                    encoding: .utf8
+                )
+        }
+
+        let result = try CLIRunner.run(["check", root.path])
+
+        // Compared with the line breaks taken out, because the report wraps
+        // the paragraph and the rule wraps it somewhere else.
+        func flattened(_ text: String) -> String {
+            text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
+        let output = flattened(result.standardOutput)
+        let rationale = flattened(
+            try #require(CheckRules.rule("view-reaches-networking")?.explanation)
+        )
+
+        func occurrences(of needle: String) -> Int {
+            output.components(separatedBy: needle).count - 1
+        }
+
+        // Four findings, and the paragraph behind them printed once.
+        #expect(occurrences(of: "[view-reaches-networking]") == 4)
+        #expect(occurrences(of: rationale) == 1, "the rationale was printed more than once")
+    }
+
     @Test("JSON output stays machine-readable and free of interactive noise")
     func jsonStaysClean() throws {
         let destination = URL(fileURLWithPath: NSTemporaryDirectory())
