@@ -116,8 +116,27 @@ public struct Console: Sendable {
         emit(styled("✗", .red), text)
     }
 
+    /// A subordinate line: a command to copy, an aligned key and value, a
+    /// sentence under a headline.
+    ///
+    /// Wrapped only when wrapping helps. A line that fits is printed exactly
+    /// as it was given, so runs of spaces holding two columns apart survive;
+    /// a line whose longest word already exceeds the width would overflow
+    /// either way, and breaking it only strands the short words on a line of
+    /// their own — `cd` above the path it belongs to. Everything else is
+    /// prose, and prose wraps.
     public func detail(_ text: String) {
-        print(styled("  \(text)", .dim))
+        for line in Self.detailLines(text, to: min(width, Self.maximumProseWidth) - 2) {
+            print(styled("  " + line, .dim))
+        }
+    }
+
+    /// The decision `detail` makes, kept separate from printing it so it can be
+    /// tested without holding the process's stdout.
+    static func detailLines(_ text: String, to limit: Int) -> [String] {
+        let longestWord = text.split(separator: " ").map(\.count).max() ?? 0
+        guard text.count > limit, longestWord <= limit else { return [text] }
+        return wrap(text, to: limit)
     }
 
     public func heading(_ text: String) {

@@ -46,6 +46,39 @@ struct ConsoleTests {
         #expect(Console.wrap("", to: 40) == [""])
     }
 
+    // MARK: - Detail lines
+
+    /// `detail` carries three different kinds of line, and the difference
+    /// between them is the whole of the decision it makes.
+    @Test("A detail line that fits keeps the spacing it was given")
+    func preservesAlignmentWhenItFits() {
+        // Several commands line two columns up by padding with spaces, and
+        // wrapping collapses runs of spaces. A line that fits must not go
+        // through it.
+        #expect(Console.detailLines("Runs      claude -p", to: 78) == ["Runs      claude -p"])
+    }
+
+    @Test("A detail line longer than the terminal is wrapped")
+    func wrapsOverlongDetail() {
+        // `keel document` printed its architecture summary through this, and
+        // at 80 columns it came out as one 143-character line.
+        let summary = "SwiftUI MVVM, screens fed both ways, organised by feature, wired "
+            + "through a composition root, built on @Observable, async/await and SwiftData."
+        let lines = Console.detailLines(summary, to: 78)
+
+        #expect(lines.count > 1)
+        #expect(lines.allSatisfy { $0.count <= 78 })
+        #expect(lines.joined(separator: " ") == summary)
+    }
+
+    @Test("A line built around one long word is left whole")
+    func leavesUnwrappableLinesAlone() {
+        // `cd <a very long path>` overflows however it is broken, and breaking
+        // it strands `cd` on a line of its own, away from what it applies to.
+        let path = "/Users/someone/Developer/" + String(repeating: "nested/", count: 12) + "App"
+        #expect(Console.detailLines("cd \(path)", to: 78) == ["cd \(path)"])
+    }
+
     // MARK: - Width
 
     @Test("Prose is capped below the terminal width")
