@@ -90,6 +90,57 @@ struct DiffTests {
         #expect(delta.isEmpty, "unstable: \(delta.entries.map(\.headline))")
     }
 
+    @Test("One new cycle is one regression, not two")
+    func countsANewCycleOnce() throws {
+        // Cycles are compared directly, at every structural scope, and `check`
+        // also has a feature-scope rule for them. Counting both reported one
+        // loop twice and told the reader two things had gone wrong.
+        let before = try scan()
+        let after = try scan { root in
+            try self.write(
+                "import Foundation\n\nstruct Bridge { let article: Article? }\n",
+                to: "Probe/Features/Settings/Domain/Bridge.swift", in: root
+            )
+            try self.write(
+                "import Foundation\n\nstruct BackBridge { let setting: Bridge? }\n",
+                to: "Probe/Features/Articles/Domain/BackBridge.swift", in: root
+            )
+        }
+
+        let delta = ArchitectureDelta(before: before, after: after)
+        let cycles = delta.regressions.filter { $0.subject.contains("Articles") }
+
+        #expect(
+            cycles.count == 1,
+            "counted twice: \(cycles.map(\.headline))"
+        )
+        #expect(cycles.first?.headline.hasPrefix("New cycle at") == true)
+    }
+
+    @Test("A new cycle says where each hop of it is")
+    func aNewCycleCarriesItsLocations() throws {
+        // The rule used to carry the evidence. Now that it is not compared,
+        // the cycle itself has to — a regression with nowhere to look is one
+        // nobody can act on.
+        let before = try scan()
+        let after = try scan { root in
+            try self.write(
+                "import Foundation\n\nstruct Bridge { let article: Article? }\n",
+                to: "Probe/Features/Settings/Domain/Bridge.swift", in: root
+            )
+            try self.write(
+                "import Foundation\n\nstruct BackBridge { let setting: Bridge? }\n",
+                to: "Probe/Features/Articles/Domain/BackBridge.swift", in: root
+            )
+        }
+
+        let delta = ArchitectureDelta(before: before, after: after)
+        let cycle = try #require(delta.regressions.first { $0.headline.hasPrefix("New cycle at") })
+
+        #expect(!cycle.locations.isEmpty, "a cycle with nowhere to look")
+        #expect(cycle.locations.allSatisfy { $0.contains(".swift:") })
+    }
+
     // MARK: - Classification
 
     @Test("Shared code that starts depending on a feature is a regression")

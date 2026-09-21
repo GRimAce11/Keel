@@ -316,6 +316,35 @@ Keel's own generated projects pass every rule, and a test asserts it — shippin
 generator whose output fails its own checker would make the checker impossible to
 take seriously.
 
+### What a branch made worse
+
+```bash
+keel diff                      # this working tree against HEAD
+keel diff main                 # against a branch
+keel diff origin/main..HEAD    # what a pull request is
+keel diff --json
+```
+
+`check` answers "what is wrong with this codebase". `diff` answers "what did
+this branch make worse", which is the question a pull request is actually
+asking, and it **invents no new opinion to do it**. Regressions are exactly the
+set `check` already calls wrong — a cycle, shared code depending on a feature, a
+layer inversion, or any new error. Everything else is a Change and exits 0.
+Adding a feature is a change; adding a cycle is a regression.
+
+A new **warning** is a change, not a regression, for the same reason a
+convention never gets to be an error.
+
+Cycles are keyed on their member set, so `A → B → A` and `B → A → B` are one
+cycle however the traversal happened to start, and a cycle is counted **once** —
+it is compared against the dependency graph directly, and the feature-scope rule
+`check` also has for it is left out of the comparison so the same loop cannot be
+reported twice.
+
+Each revision is read in a temporary worktree and removed afterwards; your
+working tree is never touched. `diff` needs history, so a shallow CI checkout
+has to set `fetch-depth: 0` — it says so when it cannot see far enough back.
+
 ---
 
 ## Creating a project

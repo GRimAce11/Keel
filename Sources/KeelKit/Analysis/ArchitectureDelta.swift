@@ -18,14 +18,25 @@ public struct ArchitectureDelta: Sendable, Equatable {
 
     /// Rules whose appearance is a regression whatever severity they carry.
     ///
-    /// A feature cycle is a `warning` in `check`, because what counts as a
-    /// feature comes from folder names. But *newly* introducing one is still
-    /// the thing this command exists to catch, so the classification here is
-    /// by rule rather than by severity.
+    /// Both are a `warning` in `check`, because which folders count as shared
+    /// and which as layers comes from their names. But *newly* introducing one
+    /// is still the thing this command exists to catch, so the classification
+    /// here is by rule rather than by severity. Cycles get the same treatment
+    /// through `comparedAsCycles`, one level up.
     static let structuralHarm: Set<String> = [
-        "feature-dependency-cycle",
         "shared-code-depends-on-feature",
         "layer-inversion",
+    ]
+
+    /// Rules whose subject is already compared directly, and which must
+    /// therefore be left out of the finding comparison.
+    ///
+    /// `cycleEntries` walks the dependency graph at every structural scope.
+    /// `check` also has a rule for the feature-scope case, so counting both
+    /// reported one new loop twice — as a cycle and as a rule — and told the
+    /// reader there were two regressions when there was one.
+    static let comparedAsCycles: Set<String> = [
+        "feature-dependency-cycle",
     ]
 
     public enum Standing: String, Sendable, Equatable {
@@ -93,7 +104,8 @@ public struct ArchitectureDelta: Sendable, Equatable {
             entries.append(Entry(
                 standing: .regression,
                 headline: "New cycle at \(cycle.scope.displayName.lowercased()) scope",
-                subject: cycle.path
+                subject: cycle.path,
+                locations: cycle.locations
             ))
         }
         for (key, cycle) in old.sorted(by: { $0.key < $1.key }) where new[key] == nil {
@@ -109,6 +121,9 @@ public struct ArchitectureDelta: Sendable, Equatable {
     private struct Cycle {
         let scope: DependencyScope
         let path: String
+        /// One line per hop, so a new cycle can be opened rather than only
+        /// read. The rule that used to carry these is no longer compared here.
+        let locations: [String]
     }
 
     /// Keyed so the same loop found from a different starting node matches
@@ -120,17 +135,39 @@ public struct ArchitectureDelta: Sendable, Equatable {
         var found: [String: Cycle] = [:]
 
         for scope in DependencyScope.structural {
+            let edges = graph.edges(at: scope)
             for cycle in graph.cycles(at: scope) {
                 let nodes = cycle.last == cycle.first ? Array(cycle.dropLast()) : cycle
                 guard !nodes.isEmpty else { continue }
+                let loop = nodes + [nodes[0]]
                 let key = "\(scope.rawValue):\(nodes.sorted().joined(separator: ","))"
                 found[key] = Cycle(
                     scope: scope,
-                    path: (nodes + [nodes[0]]).joined(separator: " → ")
+                    path: loop.joined(separator: " → "),
+                    locations: locations(around: loop, in: edges)
                 )
             }
         }
         return found
+    }
+
+    /// The first place each hop of the loop is established.
+    ///
+    /// One line per hop rather than every reference behind it: a cycle between
+    /// two features may rest on forty references, and a reader needs somewhere
+    /// to start, not the full set. Capped the same way a finding's evidence is.
+    private static func locations(
+        around loop: [String],
+        in edges: [DependencyGraph.DependencyEdge]
+    ) -> [String] {
+        var found: [String] = []
+        for (from, to) in zip(loop, loop.dropFirst()) {
+            guard let edge = edges.first(where: { $0.from == from && $0.to == to }),
+                  let first = edge.evidence.first
+            else { continue }
+            found.append(first.location)
+        }
+        return Array(found.prefix(Diagnostic.evidenceLimit))
     }
 
     // MARK: Findings
@@ -175,6 +212,9 @@ public struct ArchitectureDelta: Sendable, Equatable {
     private static func findings(in model: ProjectModel) -> [String: Diagnostic] {
         var found: [String: Diagnostic] = [:]
         for diagnostic in ProjectChecker(model: model).check() {
+            // Cycles are compared directly, at every scope. Letting the rule
+            // through as well counts the same loop twice.
+            guard !comparedAsCycles.contains(diagnostic.rule) else { continue }
             let file = diagnostic.location.map { location -> String in
                 guard let colon = location.lastIndex(of: ":") else { return location }
                 return String(location[location.startIndex..<colon])
