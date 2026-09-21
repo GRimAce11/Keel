@@ -2,12 +2,14 @@
 //
 //  Draws .github/assets/demo.svg, the terminal session shown in the README.
 //
-//  The session below is real output, captured from `keel inspect` and
-//  `keel check` on a project with a feature cycle in it. Keeping it here rather
-//  than hand-editing the SVG means the asset can be regenerated when the output
+//  The session below is real output, captured from `keel inspect --graph` and
+//  `keel check` on a project with a feature cycle in it. Nothing is reworded:
+//  the only liberty taken is which sections are shown, because `--graph` prints
+//  four more the image has no room for. Keeping it here rather than
+//  hand-editing the SVG means the asset can be regenerated when the output
 //  changes, instead of quietly drifting from what Keel actually prints — which
-//  has now happened twice, most recently when the architecture basis column
-//  gained "from relationships" and the rule count went from 8 to 17.
+//  has now happened three times, most recently when findings gained a
+//  `file:line` prefix, a wrapped rationale, a `[rule-id]` tag and a summary.
 //
 //  It shows reading a codebase rather than generating one, deliberately.
 //  Generating is the contested half; reading one somebody handed you is the
@@ -50,56 +52,95 @@ struct Span {
 
 // MARK: - The session
 
-/// Real output. The architecture block is the part worth showing: it is the
-/// thing no other tool does, and the right-hand column is the claim Keel is
-/// actually making — a relationship, a declaration, or somebody's naming.
+/// Real output. The cycle is the part worth showing: it is the relationship an
+/// import graph cannot see — both features compile into the same module, so no
+/// import ever crosses between them — and every line Keel prints about it says
+/// where it was read from.
 let session: [[Span]] = [
     [Span(0, "$ ", .green), Span(2, "keel inspect --graph")],
     [],
     [Span(0, "Feature dependencies", .text, bold: true)],
     [Span(2, "Articles", .dim)],
-    [Span(4, "└── Settings", .dim), Span(20, "1 link", .dim)],
+    [
+        Span(4, "└── Settings", .dim), Span(18, "1 link", .dim),
+        Span(26, "Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11", .dim),
+    ],
     [Span(2, "Settings", .dim)],
-    [Span(4, "└── Articles", .dim), Span(20, "1 link", .dim)],
+    [
+        Span(4, "└── Articles", .dim), Span(18, "1 link", .dim),
+        Span(26, "Demo/Features/Settings/Presentation/SettingsViewModel.swift:11", .dim),
+    ],
     [],
     [Span(0, "Cycles", .text, bold: true)],
-    [Span(2, "feature", .dim), Span(12, "Articles → Settings → Articles", .yellow)],
-    [],
-    [Span(0, "$ ", .green), Span(2, "keel inspect")],
-    [],
-    [Span(0, "Architecture", .text, bold: true)],
-    [Span(2, "Presentation", .dim), Span(21, "MVVM"), Span(40, "from relationships", .purple)],
-    [Span(21, "2 views refer to one, in 4 places.", .dim)],
-    [Span(2, "Screen data", .dim), Span(21, "Mixed"), Span(40, "from relationships", .purple)],
-    [Span(21, "3 references from a view straight to a repository.", .dim)],
-    [Span(2, "Organisation", .dim), Span(21, "Feature-based"), Span(40, "from naming", .yellow)],
-    [Span(21, "2 feature folders found.", .dim)],
-    [Span(2, "Feature isolation", .dim), Span(21, "Coupled"), Span(40, "from relationships", .purple)],
-    [Span(2, "Persistence", .dim), Span(21, "SwiftData"), Span(40, "from the code", .cyan)],
-    [Span(21, "1 type marked @Model.", .dim)],
-    [Span(2, "Wiring", .dim), Span(21, "Composition root"), Span(40, "from relationships", .purple)],
-    [Span(21, "AppContainer constructs 3 types that other", .dim)],
-    [Span(21, "types take as initializer parameters.", .dim)],
+    [Span(2, "feature", .dim), Span(11, "Articles → Settings → Articles", .yellow)],
     [],
     [Span(0, "$ ", .green), Span(2, "keel check")],
     [],
-    [Span(0, "!", .yellow), Span(2, "Articles → Settings → Articles is a dependency cycle.", .dim)],
+    [
+        Span(0, "!", .yellow),
+        Span(2, "Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11 — Articles → Settings →"),
+    ],
+    [Span(2, "Articles is a dependency cycle.")],
+    [Span(2, "Neither feature can be understood, moved or extracted without the other. This is the", .dim)],
+    [Span(2, "relationship an import graph cannot show: in a single-target app both features compile into", .dim)],
+    [Span(2, "the same module, so no import ever crosses between them and nothing else would report it.", .dim)],
     [Span(2, "Path: Articles → Settings → Articles", .dim)],
     [Span(2, "Evidence:", .dim)],
-    [Span(4, "ArticleListViewModel.swift:13", .dim), Span(35, "→ SettingsViewModel", .dim)],
-    [Span(4, "SettingsViewModel.swift:13", .dim), Span(35, "→ Article", .dim)],
+    [Span(4, "Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11", .dim)],
+    [Span(6, "Articles → Settings: ArticleListViewModel → SettingsViewModel  property", .dim)],
+    [Span(4, "Demo/Features/Settings/Presentation/SettingsViewModel.swift:11", .dim)],
+    [Span(6, "Settings → Articles: SettingsViewModel → Article  property", .dim)],
+    [Span(2, "[feature-dependency-cycle]", .dim)],
+    [],
+    [Span(0, "Summary", .text, bold: true)],
+    [Span(2, "0 errors, 1 warning", .dim)],
 ]
 
 // MARK: - Layout
 
-let width = 840.0
 let leftMargin = 22.0
 let titleBarHeight = 36.0
 let lineHeight = 21.0
 let firstBaseline = 58.0
 let fontSize = 13.0
-/// SF Mono at 13px. Measured rather than guessed, so spans line up.
-let charWidth = 7.55
+/// SF Mono at 13px, whose advance is 0.6em. Under-measuring it puts a span at
+/// a column the text before it has already run past, and the two overlap —
+/// which is what 7.55 did to the `property` column.
+let charWidth = 7.8
+/// Room for a reader whose machine has neither SF Mono nor Menlo and falls back
+/// to something wider. Measured against a substituted font that came out 1.15×
+/// wider than SF Mono, and rounded up from there — the asset has drifted three
+/// times, and it should not also have to be eyeballed.
+let substitutionAllowance = 1.2
+
+// MARK: - Geometry
+
+/// Two ways this image can be wrong that reading the source will not show: a
+/// span placed at a column the text before it has already passed, and a line
+/// that runs off the canvas. Both are arithmetic, so both are checked here
+/// rather than left to whoever next opens the PNG.
+for (index, line) in session.enumerated() {
+    var cursor = -1
+    for span in line {
+        guard span.column >= cursor else {
+            fatalError(
+                """
+                Line \(index + 1) overlaps: "\(span.text)" starts at column \(span.column), \
+                which the span before it already reached. Move it right, or make the line one span.
+                """
+            )
+        }
+        cursor = span.column + span.text.count
+    }
+}
+
+/// Sized to its content rather than to a number somebody picked. A line that
+/// no longer fits widens the image instead of running off it.
+let contentWidth = session
+    .flatMap { $0 }
+    .map { Double($0.column + $0.text.count) * charWidth * substitutionAllowance }
+    .max() ?? 0
+let width = max(840.0, (leftMargin * 2 + contentWidth).rounded(.up))
 
 let height = firstBaseline + Double(session.count) * lineHeight + 14
 
@@ -113,7 +154,7 @@ func escaped(_ text: String) -> String {
 var svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="\(Int(width))" height="\(Int(height))" \
 viewBox="0 0 \(Int(width)) \(Int(height))" role="img" \
-aria-label="keel generating, extending and inspecting an iOS project">
+aria-label="keel inspect --graph and keel check reporting a feature dependency cycle">
   <rect width="\(Int(width))" height="\(Int(height))" rx="10" fill="#0d1117"/>
   <rect width="\(Int(width))" height="\(Int(titleBarHeight))" rx="10" fill="#161b22"/>
   <rect y="26" width="\(Int(width))" height="10" fill="#161b22"/>

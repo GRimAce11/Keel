@@ -1,39 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="786" viewBox="0 0 840 786" role="img" aria-label="keel generating, extending and inspecting an iOS project">
-  <rect width="840" height="786" rx="10" fill="#0d1117"/>
-  <rect width="840" height="36" rx="10" fill="#161b22"/>
-  <rect y="26" width="840" height="10" fill="#161b22"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="915" height="660" viewBox="0 0 915 660" role="img" aria-label="keel inspect --graph and keel check reporting a feature dependency cycle">
+  <rect width="915" height="660" rx="10" fill="#0d1117"/>
+  <rect width="915" height="36" rx="10" fill="#161b22"/>
+  <rect y="26" width="915" height="10" fill="#161b22"/>
   <circle cx="22" cy="18" r="6" fill="#ff5f57"/>
   <circle cx="42" cy="18" r="6" fill="#febc2e"/>
   <circle cx="62" cy="18" r="6" fill="#28c840"/>
-  <text x="420.0" y="23" fill="#8b949e" font-size="12" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">keel</text>
+  <text x="457.5" y="23" fill="#8b949e" font-size="12" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">keel</text>
   <g font-family="ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace" font-size="13" xml:space="preserve">
-    <text><tspan x="22.0" y="58.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="58.0" fill="#f0f6fc">keel inspect --graph</tspan></text>
+    <text><tspan x="22.0" y="58.0" fill="#3fb950">$ </tspan><tspan x="37.6" y="58.0" fill="#f0f6fc">keel inspect --graph</tspan></text>
     <text><tspan x="22.0" y="100.0" fill="#f0f6fc" font-weight="700">Feature dependencies</tspan></text>
-    <text><tspan x="37.1" y="121.0" fill="#8b949e">Articles</tspan></text>
-    <text><tspan x="52.2" y="142.0" fill="#8b949e">└── Settings</tspan><tspan x="173.0" y="142.0" fill="#8b949e">1 link</tspan></text>
-    <text><tspan x="37.1" y="163.0" fill="#8b949e">Settings</tspan></text>
-    <text><tspan x="52.2" y="184.0" fill="#8b949e">└── Articles</tspan><tspan x="173.0" y="184.0" fill="#8b949e">1 link</tspan></text>
+    <text><tspan x="37.6" y="121.0" fill="#8b949e">Articles</tspan></text>
+    <text><tspan x="53.2" y="142.0" fill="#8b949e">└── Settings</tspan><tspan x="162.4" y="142.0" fill="#8b949e">1 link</tspan><tspan x="224.8" y="142.0" fill="#8b949e">Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11</tspan></text>
+    <text><tspan x="37.6" y="163.0" fill="#8b949e">Settings</tspan></text>
+    <text><tspan x="53.2" y="184.0" fill="#8b949e">└── Articles</tspan><tspan x="162.4" y="184.0" fill="#8b949e">1 link</tspan><tspan x="224.8" y="184.0" fill="#8b949e">Demo/Features/Settings/Presentation/SettingsViewModel.swift:11</tspan></text>
     <text><tspan x="22.0" y="226.0" fill="#f0f6fc" font-weight="700">Cycles</tspan></text>
-    <text><tspan x="37.1" y="247.0" fill="#8b949e">feature</tspan><tspan x="112.6" y="247.0" fill="#d29922">Articles → Settings → Articles</tspan></text>
-    <text><tspan x="22.0" y="289.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="289.0" fill="#f0f6fc">keel inspect</tspan></text>
-    <text><tspan x="22.0" y="331.0" fill="#f0f6fc" font-weight="700">Architecture</tspan></text>
-    <text><tspan x="37.1" y="352.0" fill="#8b949e">Presentation</tspan><tspan x="180.5" y="352.0" fill="#f0f6fc">MVVM</tspan><tspan x="324.0" y="352.0" fill="#a371f7">from relationships</tspan></text>
-    <text><tspan x="180.5" y="373.0" fill="#8b949e">2 views refer to one, in 4 places.</tspan></text>
-    <text><tspan x="37.1" y="394.0" fill="#8b949e">Screen data</tspan><tspan x="180.5" y="394.0" fill="#f0f6fc">Mixed</tspan><tspan x="324.0" y="394.0" fill="#a371f7">from relationships</tspan></text>
-    <text><tspan x="180.5" y="415.0" fill="#8b949e">3 references from a view straight to a repository.</tspan></text>
-    <text><tspan x="37.1" y="436.0" fill="#8b949e">Organisation</tspan><tspan x="180.5" y="436.0" fill="#f0f6fc">Feature-based</tspan><tspan x="324.0" y="436.0" fill="#d29922">from naming</tspan></text>
-    <text><tspan x="180.5" y="457.0" fill="#8b949e">2 feature folders found.</tspan></text>
-    <text><tspan x="37.1" y="478.0" fill="#8b949e">Feature isolation</tspan><tspan x="180.5" y="478.0" fill="#f0f6fc">Coupled</tspan><tspan x="324.0" y="478.0" fill="#a371f7">from relationships</tspan></text>
-    <text><tspan x="37.1" y="499.0" fill="#8b949e">Persistence</tspan><tspan x="180.5" y="499.0" fill="#f0f6fc">SwiftData</tspan><tspan x="324.0" y="499.0" fill="#39c5cf">from the code</tspan></text>
-    <text><tspan x="180.5" y="520.0" fill="#8b949e">1 type marked @Model.</tspan></text>
-    <text><tspan x="37.1" y="541.0" fill="#8b949e">Wiring</tspan><tspan x="180.5" y="541.0" fill="#f0f6fc">Composition root</tspan><tspan x="324.0" y="541.0" fill="#a371f7">from relationships</tspan></text>
-    <text><tspan x="180.5" y="562.0" fill="#8b949e">AppContainer constructs 3 types that other</tspan></text>
-    <text><tspan x="180.5" y="583.0" fill="#8b949e">types take as initializer parameters.</tspan></text>
-    <text><tspan x="22.0" y="625.0" fill="#3fb950">$ </tspan><tspan x="37.1" y="625.0" fill="#f0f6fc">keel check</tspan></text>
-    <text><tspan x="22.0" y="667.0" fill="#d29922">!</tspan><tspan x="37.1" y="667.0" fill="#8b949e">Articles → Settings → Articles is a dependency cycle.</tspan></text>
-    <text><tspan x="37.1" y="688.0" fill="#8b949e">Path: Articles → Settings → Articles</tspan></text>
-    <text><tspan x="37.1" y="709.0" fill="#8b949e">Evidence:</tspan></text>
-    <text><tspan x="52.2" y="730.0" fill="#8b949e">ArticleListViewModel.swift:13</tspan><tspan x="286.2" y="730.0" fill="#8b949e">→ SettingsViewModel</tspan></text>
-    <text><tspan x="52.2" y="751.0" fill="#8b949e">SettingsViewModel.swift:13</tspan><tspan x="286.2" y="751.0" fill="#8b949e">→ Article</tspan></text>
+    <text><tspan x="37.6" y="247.0" fill="#8b949e">feature</tspan><tspan x="107.8" y="247.0" fill="#d29922">Articles → Settings → Articles</tspan></text>
+    <text><tspan x="22.0" y="289.0" fill="#3fb950">$ </tspan><tspan x="37.6" y="289.0" fill="#f0f6fc">keel check</tspan></text>
+    <text><tspan x="22.0" y="331.0" fill="#d29922">!</tspan><tspan x="37.6" y="331.0" fill="#f0f6fc">Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11 — Articles → Settings →</tspan></text>
+    <text><tspan x="37.6" y="352.0" fill="#f0f6fc">Articles is a dependency cycle.</tspan></text>
+    <text><tspan x="37.6" y="373.0" fill="#8b949e">Neither feature can be understood, moved or extracted without the other. This is the</tspan></text>
+    <text><tspan x="37.6" y="394.0" fill="#8b949e">relationship an import graph cannot show: in a single-target app both features compile into</tspan></text>
+    <text><tspan x="37.6" y="415.0" fill="#8b949e">the same module, so no import ever crosses between them and nothing else would report it.</tspan></text>
+    <text><tspan x="37.6" y="436.0" fill="#8b949e">Path: Articles → Settings → Articles</tspan></text>
+    <text><tspan x="37.6" y="457.0" fill="#8b949e">Evidence:</tspan></text>
+    <text><tspan x="53.2" y="478.0" fill="#8b949e">Demo/Features/Articles/Presentation/ArticleListViewModel.swift:11</tspan></text>
+    <text><tspan x="68.8" y="499.0" fill="#8b949e">Articles → Settings: ArticleListViewModel → SettingsViewModel  property</tspan></text>
+    <text><tspan x="53.2" y="520.0" fill="#8b949e">Demo/Features/Settings/Presentation/SettingsViewModel.swift:11</tspan></text>
+    <text><tspan x="68.8" y="541.0" fill="#8b949e">Settings → Articles: SettingsViewModel → Article  property</tspan></text>
+    <text><tspan x="37.6" y="562.0" fill="#8b949e">[feature-dependency-cycle]</tspan></text>
+    <text><tspan x="22.0" y="604.0" fill="#f0f6fc" font-weight="700">Summary</tspan></text>
+    <text><tspan x="37.6" y="625.0" fill="#8b949e">0 errors, 1 warning</tspan></text>
   </g>
 </svg>
