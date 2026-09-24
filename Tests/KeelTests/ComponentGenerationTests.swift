@@ -196,6 +196,28 @@ struct ComponentGenerationTests {
         }
     }
 
+    @Test("Connectivity is observed, not used to gate requests")
+    func networkMonitorDoesNotGateRequests() throws {
+        try withGenerated(components: [.networking]) { root in
+            let monitor = try contents(of: "MyApp/Core/Networking/NetworkMonitor.swift", in: root)
+            // The routing table says a route exists, not that the internet is
+            // reachable — a captive portal reports satisfied. The second
+            // signal is what the first one cannot give.
+            #expect(monitor.contains("isReachable"))
+
+            // Code only — the client carries a comment naming the monitor, in
+            // order to say why it does not consult it.
+            let client = try contents(of: "MyApp/Core/Networking/APIClient.swift", in: root)
+                .split(separator: "\n")
+                .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+
+            // A pre-flight check is a second source of truth, stale by the
+            // time it is read: it turns a VPN handoff into "no internet
+            // connection" without ever attempting the request.
+            #expect(!client.contains { $0.contains("NetworkMonitor") })
+        }
+    }
+
     @Test("The design system ships components, not only tokens")
     func designSystemShipsComponents() throws {
         // Tokens alone are a page of constants. The components are the part

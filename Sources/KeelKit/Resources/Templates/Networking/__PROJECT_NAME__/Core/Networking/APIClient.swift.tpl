@@ -100,10 +100,13 @@ final class APIClient: APIClientProtocol {
     // MARK: Building
 
     private func buildRequest(from endpoint: any APIEndpoint) async throws -> URLRequest {
-        guard NetworkMonitor.shared.isConnected else {
-            throw APIError.noInternetConnection
-        }
-
+        // There is no pre-flight reachability check here on purpose.
+        // `NWPathMonitor` answers about the routing table, asynchronously, and
+        // whatever it last said is already stale by the time a request is
+        // built — refusing to send on it turns a VPN handoff into "no internet
+        // connection" without ever trying. URLSession reports the truth
+        // promptly, and `map(_:)` turns it into `.noInternetConnection`.
+        // `NetworkMonitor` is for what the UI shows, not for what is sent.
         let version = URLConstants.API.version
         let resolvedPath = (endpoint.skipVersionPrefix || version.isEmpty)
             ? endpoint.path
