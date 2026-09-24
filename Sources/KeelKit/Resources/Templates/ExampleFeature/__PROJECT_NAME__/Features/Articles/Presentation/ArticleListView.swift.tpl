@@ -56,6 +56,22 @@ struct ArticleListView: View {
         }
     }
 
+// keel:if designSystem
+    // Tokens rather than raw numbers and system fonts, because this is the
+    // file most likely to be copied into the next feature.
+    private func row(for article: Article) -> some View {
+        VStack(alignment: .leading, spacing: DSSpacing.xxs) {
+            Text(article.title)
+                .font(.headlineSmall)
+                .lineLimit(2)
+            Text(article.summary)
+                .font(.bodySmall)
+                .foregroundStyle(DSColors.textSecondary)
+                .lineLimit(2)
+        }
+        .padding(.vertical, DSSpacing.xxs)
+    }
+// keel:else
     private func row(for article: Article) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(article.title)
@@ -68,6 +84,7 @@ struct ArticleListView: View {
         }
         .padding(.vertical, 4)
     }
+// keel:end
 }
 
 #Preview {

@@ -49,7 +49,7 @@ public enum Component: String, CaseIterable, Codable, Sendable {
         case .testing:
             return "Test target with stubs and ViewModel tests"
         case .designSystem:
-            return "Spacing, colour and typography tokens"
+            return "Tokens, a shimmer, and a caching async image"
         case .exampleFeature:
             return "A working list + detail screen you can copy"
         }

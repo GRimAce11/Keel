@@ -399,7 +399,7 @@ delete.
 | **Keychain storage** | Secure storage wrapping the Keychain API |
 | **Localization** | String Catalog and typed accessors |
 | **Unit tests** | Test target with stubs and ViewModel tests |
-| **Design system** | Spacing, colour and typography tokens |
+| **Design system** | Spacing, colour and Dynamic Type tokens, plus `DSAsyncImage` and `DSShimmerPlaceholder` |
 | **Example feature** | A working list + detail screen you can copy |
 
 > [!TIP]

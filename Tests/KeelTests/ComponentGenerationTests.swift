@@ -49,6 +49,13 @@ struct ComponentGenerationTests {
         FileManager.default.fileExists(atPath: root.appendingPathComponent(path).path)
     }
 
+    private func contents(of path: String, in root: URL) throws -> String {
+        String(
+            decoding: try Data(contentsOf: root.appendingPathComponent(path)),
+            as: UTF8.self
+        )
+    }
+
     // MARK: - Inclusion
 
     @Test(
@@ -185,6 +192,73 @@ struct ComponentGenerationTests {
                 "MyApp/Features/Articles/Presentation/ArticleDetailViewModel.swift",
             ] {
                 #expect(exists(path, in: root), "expected \(path)")
+            }
+        }
+    }
+
+    @Test("The design system ships components, not only tokens")
+    func designSystemShipsComponents() throws {
+        // Tokens alone are a page of constants. The components are the part
+        // that saves a developer writing retry, downsampling and a cache by
+        // hand the first time a screen shows a remote photograph.
+        try withGenerated(components: [.designSystem]) { root in
+            for path in [
+                "MyApp/DesignSystem/DSAsyncImage.swift",
+                "MyApp/DesignSystem/DSImageLoader.swift",
+                "MyApp/DesignSystem/DSShimmer.swift",
+            ] {
+                #expect(exists(path, in: root), "expected \(path)")
+            }
+        }
+    }
+
+    @Test("Typography tokens scale with Dynamic Type")
+    func typographyTokensScale() throws {
+        try withGenerated(components: [.designSystem]) { root in
+            let typography = try contents(of: "MyApp/DesignSystem/DSTypography.swift", in: root)
+
+            // Declarations only — the header comment names the fixed-size form
+            // in order to warn against it.
+            let tokens = typography
+                .split(separator: "\n")
+                .filter { $0.contains("static let") }
+
+            #expect(!tokens.isEmpty)
+            // A fixed point size ignores the reader's text size setting. A
+            // token file that ships one teaches every screen to ignore it too.
+            for token in tokens {
+                #expect(!token.contains("Font.system(size:"), "fixed size in \(token)")
+            }
+        }
+    }
+
+    @Test("The example feature uses the design system when both are selected")
+    func exampleFeatureUsesDesignSystem() throws {
+        // Tokens nothing references are dead code, and the feature a developer
+        // copies is where the habit is either set or lost.
+        try withGenerated(components: [.networking, .exampleFeature, .designSystem]) { root in
+            let list = try contents(of: "MyApp/Features/Articles/Presentation/ArticleListView.swift", in: root)
+            #expect(list.contains("DSSpacing"))
+            #expect(list.contains(".headlineSmall"))
+
+            let detail = try contents(of: "MyApp/Features/Articles/Presentation/ArticleDetailView.swift", in: root)
+            #expect(detail.contains("dsReadableText"))
+        }
+    }
+
+    @Test("The example feature falls back to plain SwiftUI without the design system")
+    func exampleFeatureCompilesWithoutDesignSystem() throws {
+        // Referring to a token that was never written would not compile, which
+        // is the cost of wiring the feature to the design system at all.
+        try withGenerated(components: [.networking, .exampleFeature]) { root in
+            for file in ["ArticleListView.swift", "ArticleDetailView.swift"] {
+                let source = try contents(
+                    of: "MyApp/Features/Articles/Presentation/\(file)",
+                    in: root
+                )
+                #expect(!source.contains("DSSpacing"))
+                #expect(!source.contains("DSColors"))
+                #expect(!source.contains("dsReadableText"))
             }
         }
     }

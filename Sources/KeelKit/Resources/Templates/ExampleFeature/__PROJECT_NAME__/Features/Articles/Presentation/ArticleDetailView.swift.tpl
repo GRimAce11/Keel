@@ -34,6 +34,20 @@ struct ArticleDetailView: View {
 
         case .loaded(let article):
             ScrollView {
+// keel:if designSystem
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    Text(article.title)
+                        .font(.displaySmall)
+                        .dsReadableText()
+
+                    Text(article.body)
+                        .font(.bodyLarge)
+                        .foregroundStyle(DSColors.textSecondary)
+                        .dsReadableText()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(DSSpacing.md)
+// keel:else
                 VStack(alignment: .leading, spacing: 16) {
                     Text(article.title)
                         .font(.title2.bold())
@@ -46,6 +60,7 @@ struct ArticleDetailView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
+// keel:end
             }
 
         case .failed(let error):
