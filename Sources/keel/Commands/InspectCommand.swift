@@ -476,12 +476,25 @@ struct Inspect: ParsableCommand {
         guard !inspection.features.isEmpty else { return }
 
         console.heading("Features (\(inspection.features.count))")
-        let width = inspection.features.map(\.name.count).max() ?? 0
-        for feature in inspection.features {
-            let name = feature.name.padding(toLength: max(width, 1), withPad: " ", startingAt: 0)
-            let layers = feature.layers.isEmpty ? "" : "  \(feature.layers.joined(separator: ", "))"
-            let files = feature.swiftFileCount == 1 ? "1 file" : "\(feature.swiftFileCount) files"
-            console.detail("\(name)  \(files)\(layers)")
+        let counts = inspection.features.map {
+            $0.swiftFileCount == 1 ? "1 file" : "\($0.swiftFileCount) files"
+        }
+        let nameWidth = max(inspection.features.map(\.name.count).max() ?? 0, 1)
+        // The count column is padded too. Left to itself, one feature with a
+        // two-digit count pushed its own layer column a space right of every
+        // other row's.
+        let countWidth = max(counts.map(\.count).max() ?? 0, 1)
+
+        for (index, feature) in inspection.features.enumerated() {
+            let name = feature.name.padding(toLength: nameWidth, withPad: " ", startingAt: 0)
+            guard !feature.layers.isEmpty else {
+                // Nothing follows, so padding the count would only leave
+                // trailing whitespace on the line.
+                console.detail("\(name)  \(counts[index])")
+                continue
+            }
+            let files = counts[index].padding(toLength: countWidth, withPad: " ", startingAt: 0)
+            console.detail("\(name)  \(files)  \(feature.layers.joined(separator: ", "))")
         }
     }
 

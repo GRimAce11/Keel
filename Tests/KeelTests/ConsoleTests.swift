@@ -79,6 +79,39 @@ struct ConsoleTests {
         #expect(Console.detailLines("cd \(path)", to: 78) == ["cd \(path)"])
     }
 
+    @Test("Wrapping an aligned row keeps the columns aligned")
+    func wrapsColumnsWithHangingIndent() {
+        // `keel inspect`'s feature table: one row long enough to wrap used to
+        // come back with its padding collapsed and its tail at the margin, so
+        // it lined up with nothing.
+        let row = "Authentication  7 files   " + Array(repeating: "Layer", count: 12).joined(separator: ", ")
+        let lines = Console.detailLines(row, to: 78)
+
+        let column = "Authentication  7 files   ".count
+
+        #expect(lines.count > 1)
+        // The first line keeps its padding exactly as given.
+        #expect(lines[0].hasPrefix("Authentication  7 files   Layer"))
+
+        for line in lines.dropFirst() {
+            // Every continuation hangs under the column it continues, and
+            // carries content once it gets there.
+            #expect(line.prefix(column).allSatisfy { $0 == " " })
+            #expect(line.count > column)
+        }
+        #expect(lines.allSatisfy { $0.count <= 78 })
+    }
+
+    @Test("A line with no columns still wraps to the margin")
+    func wrapsProseWithoutColumns() {
+        let prose = Array(repeating: "word", count: 40).joined(separator: " ")
+        let lines = Console.detailLines(prose, to: 40)
+
+        #expect(lines.count > 1)
+        // No column to hang from, so nothing is indented.
+        #expect(lines.allSatisfy { !$0.hasPrefix(" ") })
+    }
+
     // MARK: - Width
 
     @Test("Prose is capped below the terminal width")

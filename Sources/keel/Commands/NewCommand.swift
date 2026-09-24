@@ -89,6 +89,16 @@ struct New: ParsableCommand {
             console.warn("Using \"\(projectName.raw)\" as the project name (from \"\(projectName.original)\").")
         }
 
+        // Checked before a single question is asked. The generator refuses to
+        // write into a directory that already exists, and discovering that
+        // after nine prompts wastes every one of them.
+        let projectDirectory = destinationDirectory
+            .appendingPathComponent(projectName.raw, isDirectory: true)
+        if FileManager.default.fileExists(atPath: projectDirectory.path) {
+            console.error(ProjectGenerator.GenerationError.destinationExists(projectDirectory).description)
+            throw ExitCode.failure
+        }
+
         // Nobody is there to answer a piped or CI invocation, and blocking on
         // readLine would hang it rather than fail it.
         let answers: any AnswerProvider = (assumeDefaults || !InteractivePrompt.isAvailable)
@@ -106,14 +116,19 @@ struct New: ParsableCommand {
         try generate(configuration, console: console)
     }
 
-    private func generate(_ configuration: ProjectConfiguration, console: Console) throws {
-        let destination = URL(
+    /// Where the project folder will be created.
+    private var destinationDirectory: URL {
+        URL(
             fileURLWithPath: output ?? FileManager.default.currentDirectoryPath
         ).standardizedFileURL
+    }
 
+    private func generate(_ configuration: ProjectConfiguration, console: Console) throws {
         do {
             let generator = try ProjectGenerator(configuration: configuration, console: console)
-            let outcome = try generator.generate(in: destination, initializeGit: !noGit)
+            // Checked again inside, because the directory can appear between
+            // the question and the answer.
+            let outcome = try generator.generate(in: destinationDirectory, initializeGit: !noGit)
 
             console.success("Wrote \(outcome.fileCount) files")
             if outcome.didInitializeGitRepository {

@@ -136,7 +136,49 @@ public struct Console: Sendable {
     static func detailLines(_ text: String, to limit: Int) -> [String] {
         let longestWord = text.split(separator: " ").map(\.count).max() ?? 0
         guard text.count > limit, longestWord <= limit else { return [text] }
-        return wrap(text, to: limit)
+
+        // A run of two or more spaces holds two columns apart; it is not a
+        // word break, and wrapping through one collapses it. That is how one
+        // over-long row of `keel inspect`'s feature table came out as two
+        // rows, neither lined up with the rest. Wrap only what follows the
+        // last column, and indent the continuation to it, so a row too wide
+        // for the terminal still reads as one row.
+        guard let column = columnOffset(in: text, limit: limit) else {
+            return wrap(text, to: limit)
+        }
+
+        let indent = String(repeating: " ", count: column)
+        let head = String(text.prefix(column))
+        return wrap(String(text.dropFirst(column)), to: limit - column)
+            .enumerated()
+            .map { $0.offset == 0 ? head + $0.element : indent + $0.element }
+    }
+
+    /// Narrower than this and the wrapped column is a ribbon, which reads
+    /// worse than losing the alignment.
+    private static let minimumColumnWidth = 20
+
+    /// Where the last column wide enough to wrap into begins, or `nil` when
+    /// the line has no columns — a leading indent is a margin, not a column.
+    private static func columnOffset(in text: String, limit: Int) -> Int? {
+        let characters = Array(text)
+        var offsets: [Int] = []
+        var index = 0
+
+        while index < characters.count, characters[index] == " " { index += 1 }
+
+        while index < characters.count {
+            guard characters[index] == " " else {
+                index += 1
+                continue
+            }
+            var end = index
+            while end < characters.count, characters[end] == " " { end += 1 }
+            if end - index >= 2 { offsets.append(end) }
+            index = end
+        }
+
+        return offsets.last { limit - $0 >= minimumColumnWidth }
     }
 
     public func heading(_ text: String) {
